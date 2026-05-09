@@ -1,16 +1,21 @@
-class Internship {
-  String id;
-  String title;
-  String description;
-  String companyId;
-  String companyName;
-  String location;
-  String field;
-  List<String> requirements;
-  DateTime deadline;
-  bool isActive;
+// lib/models/internship.dart
 
-  Internship({
+class Internship {
+  final String id;
+  final String title;
+  final String description;
+  final String companyId;
+  final String companyName;
+  final String location;
+  final String field;
+  final List<String> requirements;
+  final DateTime deadline;
+  final bool isActive;
+  final int? matchScore;
+  final int views;
+  final int applicationsCount;
+
+  const Internship({
     required this.id,
     required this.title,
     required this.description,
@@ -21,35 +26,41 @@ class Internship {
     required this.requirements,
     required this.deadline,
     this.isActive = true,
+    this.matchScore,
+    this.views = 0,
+    this.applicationsCount = 0,
   });
 
-  factory Internship.fromJson(Map<String, dynamic> json) {
-    return Internship(
-      id: json['id'],
-      title: json['title'],
-      description: json['description'],
-      companyId: json['companyId'],
-      companyName: json['companyName'],
-      location: json['location'],
-      field: json['field'],
-      requirements: List<String>.from(json['requirements']),
-      deadline: DateTime.parse(json['deadline']),
-      isActive: json['isActive'] ?? true,
-    );
-  }
+  int get daysLeft   => deadline.difference(DateTime.now()).inDays;
+  bool get isExpired => daysLeft < 0;
+  String get deadlineLabel => isExpired ? 'Closed' : '$daysLeft days left';
 
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': description,
-      'companyId': companyId,
-      'companyName': companyName,
-      'location': location,
-      'field': field,
-      'requirements': requirements,
-      'deadline': deadline.toIso8601String(),
-      'isActive': isActive,
-    };
-  }
+  factory Internship.fromJson(Map<String, dynamic> json) => Internship(
+    id:          json['id']          as String,
+    title:       json['title']       as String,
+    description: json['description'] as String? ?? '',
+    companyId:   json['companyId']   as String? ?? '',
+    companyName: json['companyName'] as String? ?? 'Unknown',
+    location:    json['location']    as String? ?? '',
+    field:       json['field']       as String? ?? '',
+    requirements: (json['requirements'] as List<dynamic>? ?? [])
+        .map((e) => e.toString()).toList(),
+    deadline:    DateTime.parse(json['deadline'] as String),
+    isActive:    json['isActive']    as bool? ?? true,
+    matchScore:  json['matchScore']  as int?,
+    views:       json['views']       as int? ?? 0,
+    applicationsCount: json['applicationsCount'] as int? ?? 0,
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id, 'title': title, 'description': description,
+    'companyId': companyId, 'companyName': companyName,
+    'location': location, 'field': field,
+    'requirements': requirements,
+    'deadline': deadline.toIso8601String(),
+    'isActive': isActive,
+    'matchScore': matchScore,
+    'views': views,
+    'applicationsCount': applicationsCount,
+  };
 }

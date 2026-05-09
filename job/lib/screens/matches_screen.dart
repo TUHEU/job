@@ -1,211 +1,137 @@
+// lib/screens/matches_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/internship.dart';
+import '../utils/app_theme.dart';
+import '../widgets/shared_widgets.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({super.key});
-
   @override
-  MatchesScreenState createState() => MatchesScreenState();
+  State<MatchesScreen> createState() => _MatchesScreenState();
 }
 
-class MatchesScreenState extends State<MatchesScreen> {
+class _MatchesScreenState extends State<MatchesScreen>
+    with SingleTickerProviderStateMixin {
   List<Internship> _matches = [];
-  bool _isLoading = true;
+  bool _loading = true;
+  late TabController _tabs;
 
   @override
   void initState() {
     super.initState();
-    _loadMatches();
+    _tabs = TabController(length: 3, vsync: this);
+    _load();
   }
 
-  void _loadMatches() async {
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
     final matches = await ApiService.getMatches();
-    setState(() {
-      _matches = matches;
-      _isLoading = false;
-    });
+    if (!mounted) return;
+    setState(() { _matches = matches; _loading = false; });
   }
 
-  void _apply(String internshipId) async {
-    final result = await ApiService.applyForInternship(internshipId);
+  Future<void> _apply(String id) async {
+    final res = await ApiService.applyForInternship(id);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result['message'])));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(res['message'] as String? ?? res['error'] as String? ?? 'Done'),
+      backgroundColor: res.containsKey('error') ? Colors.red : AppColors.green,
+    ));
   }
+
+  List<Internship> get _recommended =>
+      _matches.where((i) => (i.matchScore ?? 0) >= 70).toList();
+  List<Internship> get _others =>
+      _matches.where((i) => (i.matchScore ?? 0) < 70).toList();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('My Matches')),
-      body: Container(
-        color: const Color(0xFFF7EFE5),
-        child: ListView(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF14563A), Color(0xFF7B1023)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 18,
-                      offset: Offset.zero,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Recommended for you',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      'These internships match your profile and are prioritized based on your skills and GPA.',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Chip(
-                      label: Text('${_matches.length} matches found'),
-                      backgroundColor: Colors.white24,
-                      labelStyle: const TextStyle(color: Colors.white),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            if (_isLoading)
-              const Center(child: CircularProgressIndicator())
-            else if (_matches.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                child: Text(
-                  'No matches found yet. Browse internships to discover opportunities suited for you.',
-                  style: TextStyle(fontSize: 16, height: 1.5),
-                  textAlign: TextAlign.center,
-                ),
-              )
-            else
-              ..._matches
-                  .map(
-                    (internship) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: _buildMatchCard(internship),
-                    ),
-                  )
-                  .toList(),
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(
+        title: const Text('My Matches'),
+        bottom: TabBar(
+          controller: _tabs,
+          indicatorColor: Colors.white,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white60,
+          tabs: const [
+            Tab(text: 'Recommended'),
+            Tab(text: 'All'),
+            Tab(text: 'Others'),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildMatchCard(Internship internship) {
-    final daysLeft = internship.deadline.difference(DateTime.now()).inDays;
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
+      body: Column(children: [
+        GradientBanner(
+          title: 'Recommended For You',
+          subtitle: 'Ranked by skill and GPA match score.',
+          chip: Chip(
+            label: Text('${_matches.length} matches found'),
+            backgroundColor: Colors.white24,
+            labelStyle: const TextStyle(color: Colors.white,
+                fontSize: 12, fontWeight: FontWeight.w600),
           ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              internship.companyName,
-              style: const TextStyle(color: Colors.grey),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              internship.title,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              internship.field,
-              style: const TextStyle(color: Colors.black87),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                _buildChip(
-                  '${(80 + daysLeft).clamp(65, 95)}% match',
-                  const Color(0xFFE9F6F0),
-                ),
-                const SizedBox(width: 8),
-                _buildChip(
-                  daysLeft >= 0 ? 'Deadline ${daysLeft}d' : 'Closed',
-                  const Color(0xFFF5E7E9),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Text(
-              internship.description,
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 16),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  daysLeft >= 0
-                      ? 'Deadline in $daysLeft days'
-                      : 'Deadline passed',
-                  style: TextStyle(
-                    color: daysLeft >= 0 ? Colors.green[700] : Colors.red[700],
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: () => _apply(internship.id),
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  child: const Text('Apply'),
-                ),
-              ],
-            ),
-          ],
         ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _loading
+              ? const LoadingOverlay()
+              : TabBarView(
+                  controller: _tabs,
+                  children: [
+                    _MatchList(_recommended, _apply),
+                    _MatchList(_matches, _apply),
+                    _MatchList(_others, _apply),
+                  ],
+                ),
+        ),
+      ]),
+      bottomNavigationBar: GoBottomNav(
+        currentIndex: 1,
+        onTap: (i) {
+          const routes = ['/home', '/matches', '/applications', '/profile'];
+          if (i != 1) Navigator.pushNamed(context, routes[i]);
+        },
       ),
     );
   }
+}
 
-  Widget _buildChip(String label, Color color) {
-    return Chip(label: Text(label), backgroundColor: color);
+class _MatchList extends StatelessWidget {
+  const _MatchList(this.items, this.onApply);
+  final List<Internship> items;
+  final Future<void> Function(String) onApply;
+
+  @override
+  Widget build(BuildContext context) {
+    if (items.isEmpty) {
+      return const EmptyState(
+        icon: Icons.favorite_border,
+        message: 'No matches here',
+        sub: 'Complete your profile to improve your match score.',
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () async {},
+      color: AppColors.green,
+      child: ListView.builder(
+        padding: const EdgeInsets.only(bottom: 20),
+        itemCount: items.length,
+        itemBuilder: (_, i) => InternshipCard(
+          internship: items[i],
+          actionLabel: 'Apply',
+          onAction: () => onApply(items[i].id),
+          showScore: true,
+        ),
+      ),
+    );
   }
 }

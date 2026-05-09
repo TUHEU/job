@@ -1,328 +1,162 @@
+// lib/screens/internship_list_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/internship.dart';
+import '../utils/app_theme.dart';
+import '../widgets/shared_widgets.dart';
 
 class InternshipListScreen extends StatefulWidget {
   const InternshipListScreen({super.key});
-
   @override
-  InternshipListScreenState createState() => InternshipListScreenState();
+  State<InternshipListScreen> createState() => _InternshipListScreenState();
 }
 
-class InternshipListScreenState extends State<InternshipListScreen> {
-  List<Internship> _internships = [];
-  List<Internship> _filteredInternships = [];
-  bool _isLoading = true;
-  String _searchQuery = '';
-  String _locationFilter = '';
-  String _fieldFilter = '';
+class _InternshipListScreenState extends State<InternshipListScreen> {
+  List<Internship> _all = [];
+  List<Internship> _filtered = [];
+  bool _loading = true;
+
+  final _searchCtrl   = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _fieldCtrl    = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadInternships();
+    _load();
   }
 
-  void _loadInternships() async {
-    final internships = await ApiService.getInternships();
-    setState(() {
-      _internships = internships;
-      _filteredInternships = internships;
-      _isLoading = false;
-    });
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final list = await ApiService.getInternships();
+    if (!mounted) return;
+    setState(() { _all = list; _filtered = list; _loading = false; });
   }
 
-  void _filterInternships() {
+  void _filter() {
+    final q  = _searchCtrl.text.toLowerCase();
+    final lo = _locationCtrl.text.toLowerCase();
+    final fi = _fieldCtrl.text.toLowerCase();
     setState(() {
-      _filteredInternships = _internships.where((internship) {
-        final matchesSearch =
-            _searchQuery.isEmpty ||
-            internship.title.toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            ) ||
-            internship.description.toLowerCase().contains(
-              _searchQuery.toLowerCase(),
-            ) ||
-            internship.requirements.any(
-              (req) => req.toLowerCase().contains(_searchQuery.toLowerCase()),
-            );
-        final matchesLocation =
-            _locationFilter.isEmpty ||
-            internship.location.toLowerCase().contains(
-              _locationFilter.toLowerCase(),
-            );
-        final matchesField =
-            _fieldFilter.isEmpty ||
-            internship.field.toLowerCase().contains(_fieldFilter.toLowerCase());
-        return matchesSearch && matchesLocation && matchesField;
+      _filtered = _all.where((i) {
+        final matchQ  = q.isEmpty  || i.title.toLowerCase().contains(q) ||
+            i.description.toLowerCase().contains(q) ||
+            i.requirements.any((r) => r.toLowerCase().contains(q));
+        final matchLo = lo.isEmpty || i.location.toLowerCase().contains(lo);
+        final matchFi = fi.isEmpty || i.field.toLowerCase().contains(fi);
+        return matchQ && matchLo && matchFi;
       }).toList();
     });
   }
 
-  void _apply(String internshipId) async {
-    final result = await ApiService.applyForInternship(internshipId);
+  Future<void> _apply(String id) async {
+    final res = await ApiService.applyForInternship(id);
     if (!mounted) return;
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text(result['message'])));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(res['message'] as String? ?? res['error'] as String? ?? 'Done'),
+      backgroundColor: res.containsKey('error') ? Colors.red : AppColors.green,
+    ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.cream,
       appBar: AppBar(title: const Text('Browse Internships')),
-      body: Container(
-        color: const Color(0xFFF7EFE5),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF14563A), Color(0xFF7B1023)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.12),
-                      blurRadius: 18,
-                      offset: Offset.zero,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Find your next internship',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 10),
-                    Text(
-                      'Browse active internships from local employers. Filter by field, location, and keyword to find opportunities that suit your goals.',
-                      style: TextStyle(color: Colors.white70, height: 1.5),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Card(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                elevation: 2,
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    children: [
-                      _buildSearchField(
-                        context,
-                        hintText: 'Search internships...',
-                        icon: Icons.search,
-                        onChanged: (value) {
-                          _searchQuery = value;
-                          _filterInternships();
-                        },
-                      ),
-                      const SizedBox(height: 14),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildSearchField(
-                              context,
-                              hintText: 'Location',
-                              icon: Icons.location_on,
-                              onChanged: (value) {
-                                _locationFilter = value;
-                                _filterInternships();
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildSearchField(
-                              context,
-                              hintText: 'Field',
-                              icon: Icons.business,
-                              onChanged: (value) {
-                                _fieldFilter = value;
-                                _filterInternships();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : _filteredInternships.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 28,
-                      ),
-                      child: Text(
-                        'No internships match your criteria. Try changing the filters or keyword search.',
-                        style: TextStyle(fontSize: 16, height: 1.5),
-                        textAlign: TextAlign.center,
-                      ),
-                    )
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      itemCount: _filteredInternships.length,
-                      itemBuilder: (context, index) {
-                        final internship = _filteredInternships[index];
-                        final daysLeft = internship.deadline
-                            .difference(DateTime.now())
-                            .inDays;
-                        return _buildInternshipCard(internship, daysLeft);
-                      },
-                    ),
-            ),
-          ],
+      body: Column(children: [
+        GradientBanner(
+          title: 'Find Your Next Internship',
+          subtitle: 'Browse active listings from employers across Cameroon.',
         ),
-      ),
-    );
-  }
+        const SizedBox(height: 12),
 
-  Widget _buildSearchField(
-    BuildContext context, {
-    required String hintText,
-    required IconData icon,
-    required ValueChanged<String> onChanged,
-  }) {
-    return TextField(
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: Icon(icon),
-        filled: true,
-        fillColor: const Color(0xFFF5F2EE),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide.none,
-        ),
-      ),
-      onChanged: onChanged,
-    );
-  }
-
-  Widget _buildInternshipCard(Internship internship, int daysLeft) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(22),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 16,
-              offset: const Offset(0, 10),
+        // ── Search & filter ───────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12, offset: const Offset(0, 4))],
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      internship.title,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF14563A).withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Text(
-                      '${daysLeft >= 0 ? '$daysLeft days' : 'Closed'}',
-                      style: TextStyle(
-                        color: daysLeft >= 0
-                            ? Colors.green[700]
-                            : Colors.red[700],
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(
-                internship.companyName,
-                style: const TextStyle(color: Colors.grey),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                internship.description,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  _buildInfoChip(internship.location, const Color(0xFFE9F6F0)),
-                  _buildInfoChip(internship.field, const Color(0xFFF5E7E9)),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Requirements: ${internship.requirements.join(', ')}',
-                style: const TextStyle(
-                  fontStyle: FontStyle.italic,
-                  color: Colors.black87,
+            child: Column(children: [
+              TextField(
+                controller: _searchCtrl,
+                onChanged: (_) => _filter(),
+                decoration: const InputDecoration(
+                  hintText: 'Search by title, skill, keyword…',
+                  prefixIcon: Icon(Icons.search),
                 ),
               ),
-              const SizedBox(height: 14),
-              Align(
-                alignment: Alignment.centerRight,
-                child: ElevatedButton(
-                  onPressed: () => _apply(internship.id),
-                  style: ElevatedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(child: TextField(
+                  controller: _locationCtrl,
+                  onChanged: (_) => _filter(),
+                  decoration: const InputDecoration(
+                    hintText: 'Location',
+                    prefixIcon: Icon(Icons.location_on_outlined, size: 18),
                   ),
-                  child: const Text('Apply'),
-                ),
-              ),
-            ],
+                )),
+                const SizedBox(width: 10),
+                Expanded(child: TextField(
+                  controller: _fieldCtrl,
+                  onChanged: (_) => _filter(),
+                  decoration: const InputDecoration(
+                    hintText: 'Field',
+                    prefixIcon: Icon(Icons.work_outline, size: 18),
+                  ),
+                )),
+              ]),
+            ]),
           ),
         ),
+        const SizedBox(height: 8),
+
+        // ── Results count ─────────────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(children: [
+            Text('${_filtered.length} internship${_filtered.length == 1 ? '' : 's'}',
+                style: const TextStyle(color: AppColors.textGrey,
+                    fontSize: 13, fontWeight: FontWeight.w500)),
+          ]),
+        ),
+
+        // ── List ──────────────────────────────────────────────────────────
+        Expanded(
+          child: _loading
+              ? const LoadingOverlay()
+              : _filtered.isEmpty
+              ? EmptyState(
+                  icon: Icons.search_off_outlined,
+                  message: 'No internships found',
+                  sub: 'Try changing your filters or search terms.',
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  color: AppColors.green,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    itemCount: _filtered.length,
+                    itemBuilder: (_, i) => InternshipCard(
+                      internship: _filtered[i],
+                      actionLabel: 'Apply',
+                      onAction: () => _apply(_filtered[i].id),
+                    ),
+                  ),
+                ),
+        ),
+      ]),
+      bottomNavigationBar: GoBottomNav(
+        currentIndex: -1,
+        onTap: (i) {
+          const routes = ['/home', '/matches', '/applications', '/profile'];
+          Navigator.pushNamed(context, routes[i]);
+        },
       ),
     );
-  }
-
-  Widget _buildInfoChip(String label, Color color) {
-    return Chip(label: Text(label), backgroundColor: color);
   }
 }

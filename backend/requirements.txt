@@ -1,6 +1,20 @@
+# Goinus — Python dependencies
+# Install with:  pip install -r requirements.txt
+
+# Web framework
 flask>=3.0.0
+
+# MySQL driver + connection pooling
 mysql-connector-python>=8.3.0
+
+# Password hashing
 bcrypt>=4.1.2
+
+# JWT tokens
 PyJWT>=2.8.0
+
+# Werkzeug (secure_filename, etc.) — bundled with Flask but pinned for safety
 Werkzeug>=3.0.0
+
+# .env file loader
 python-dotenv>=1.0.0

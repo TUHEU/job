@@ -1,167 +1,164 @@
+// lib/screens/applications_screen.dart
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../models/application.dart';
+import '../utils/app_theme.dart';
+import '../widgets/shared_widgets.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
-
   @override
-  ApplicationsScreenState createState() => ApplicationsScreenState();
+  State<ApplicationsScreen> createState() => _ApplicationsScreenState();
 }
 
-class ApplicationsScreenState extends State<ApplicationsScreen> {
-  List<InternshipApplication> _applications = [];
-  bool _isLoading = true;
+class _ApplicationsScreenState extends State<ApplicationsScreen> {
+  List<InternshipApplication> _apps = [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadApplications();
+    _load();
   }
 
-  void _loadApplications() async {
-    final applications = await ApiService.getApplications();
-    setState(() {
-      _applications = applications;
-      _isLoading = false;
-    });
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    final apps = await ApiService.getApplications();
+    if (!mounted) return;
+    setState(() { _apps = apps; _loading = false; });
   }
 
-  void _updateStatus(String id, String status) async {
+  Future<void> _updateStatus(String id, String status) async {
     await ApiService.updateApplicationStatus(id, status);
-    _loadApplications();
+    _load();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: AppColors.cream,
       appBar: AppBar(title: const Text('My Applications')),
-      body: Container(
-        color: const Color(0xFFF7EFE5),
-        child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : _applications.isEmpty
-            ? const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 24, vertical: 28),
-                child: Text(
-                  'You have not applied to any internships yet. Explore opportunities and send your first application.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 16, height: 1.5),
-                ),
-              )
-            : ListView.builder(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                itemCount: _applications.length,
-                itemBuilder: (context, index) {
-                  final app = _applications[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 8,
-                    ),
-                    child: _buildApplicationCard(app),
-                  );
-                },
+      body: _loading
+          ? const LoadingOverlay()
+          : _apps.isEmpty
+          ? Column(children: [
+              GradientBanner(
+                title: 'Your Applications',
+                subtitle: 'Track all your internship applications here.',
               ),
+              const SizedBox(height: 40),
+              EmptyState(
+                icon: Icons.description_outlined,
+                message: 'No applications yet',
+                sub: 'Browse internships and hit Apply to get started.',
+              ),
+            ])
+          : RefreshIndicator(
+              onRefresh: _load,
+              color: AppColors.green,
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 24),
+                children: [
+                  GradientBanner(
+                    title: 'Your Applications',
+                    subtitle: 'Track all your internship applications here.',
+                    chip: Chip(
+                      label: Text('${_apps.length} application${_apps.length == 1 ? '' : 's'}'),
+                      backgroundColor: Colors.white24,
+                      labelStyle: const TextStyle(color: Colors.white,
+                          fontSize: 12),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  ..._apps.map((a) => _AppCard(app: a, onStatus: _updateStatus)),
+                ],
+              ),
+            ),
+      bottomNavigationBar: GoBottomNav(
+        currentIndex: 2,
+        onTap: (i) {
+          const routes = ['/home', '/matches', '/applications', '/profile'];
+          if (i != 2) Navigator.pushNamed(context, routes[i]);
+        },
       ),
     );
   }
+}
 
-  Widget _buildApplicationCard(InternshipApplication app) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
-          ),
+class _AppCard extends StatelessWidget {
+  const _AppCard({required this.app, required this.onStatus});
+  final InternshipApplication app;
+  final Future<void> Function(String id, String status) onStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    return GoCard(
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+          Expanded(child: Text('Application #${app.id.substring(0, 8)}',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
+          StatusBadge(app.status),
+        ]),
+        const SizedBox(height: 10),
+        _Row('Internship ID', app.internshipId.substring(0, 8)),
+        if (app.gpa != null) _Row('GPA', app.gpa!.toStringAsFixed(2)),
+        if (app.aboutMe != null && app.aboutMe!.isNotEmpty)
+          _Row('About', app.aboutMe!),
+        if (app.createdAt != null)
+          _Row('Applied', app.createdAt!.split('T').first),
+        if (app.documents != null && app.documents!.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          const Text('Documents', style: TextStyle(
+              fontWeight: FontWeight.w600, fontSize: 13,
+              color: AppColors.textGrey)),
+          const SizedBox(height: 4),
+          ...app.documents!.map((d) => Row(children: [
+            const Icon(Icons.attach_file, size: 14, color: AppColors.textGrey),
+            const SizedBox(width: 4),
+            Text(d, style: const TextStyle(fontSize: 13,
+                color: AppColors.textGrey)),
+          ])),
         ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        const Divider(height: 20),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  'Application ${app.id}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                _buildStatusBadge(app.status),
+            const Text('Update Status',
+                style: TextStyle(fontSize: 13,
+                    color: AppColors.textGrey)),
+            DropdownButton<String>(
+              value: app.status,
+              underline: const SizedBox(),
+              borderRadius: BorderRadius.circular(12),
+              items: const [
+                DropdownMenuItem(value: 'pending',  child: Text('Pending')),
+                DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
+                DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
               ],
-            ),
-            const SizedBox(height: 12),
-            Text('Intern: ${app.internId}'),
-            if (app.gpa != null) ...[
-              const SizedBox(height: 6),
-              Text('GPA: ${app.gpa}'),
-            ],
-            if (app.aboutMe != null) ...[
-              const SizedBox(height: 6),
-              Text('About: ${app.aboutMe}'),
-            ],
-            if (app.documents != null && app.documents!.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              const Text(
-                'Documents:',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 6),
-              ...app.documents!.map((doc) => Text('- $doc')),
-            ],
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Update status:'),
-                DropdownButton<String>(
-                  value: app.status,
-                  items: ['pending', 'accepted', 'rejected']
-                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      _updateStatus(app.id, value);
-                    }
-                  },
-                ),
-              ],
+              onChanged: (v) {
+                if (v != null) onStatus(app.id, v);
+              },
             ),
           ],
         ),
-      ),
+      ]),
     );
   }
+}
 
-  Widget _buildStatusBadge(String status) {
-    final color = status == 'accepted'
-        ? Colors.green[100]
-        : status == 'rejected'
-        ? Colors.red[100]
-        : Colors.yellow[100];
-    final textColor = status == 'accepted'
-        ? Colors.green[800]
-        : status == 'rejected'
-        ? Colors.red[800]
-        : Colors.orange[800];
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Text(
-        status.toUpperCase(),
-        style: TextStyle(color: textColor, fontWeight: FontWeight.w600),
-      ),
+class _Row extends StatelessWidget {
+  const _Row(this.label, this.value);
+  final String label, value;
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        SizedBox(width: 90, child: Text('$label:',
+            style: const TextStyle(color: AppColors.textGrey, fontSize: 13))),
+        Expanded(child: Text(value,
+            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
+      ]),
     );
   }
 }

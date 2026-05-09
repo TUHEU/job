@@ -1,192 +1,157 @@
+// lib/screens/camera_screen.dart
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../services/api_service.dart';
+import '../utils/app_theme.dart';
+import '../widgets/shared_widgets.dart';
 
 class CameraScreen extends StatefulWidget {
   const CameraScreen({super.key});
-
   @override
-  CameraScreenState createState() => CameraScreenState();
+  State<CameraScreen> createState() => _CameraScreenState();
 }
 
-class CameraScreenState extends State<CameraScreen> {
-  XFile? _imageFile;
-  bool _isSending = false;
+class _CameraScreenState extends State<CameraScreen> {
+  XFile? _image;
+  bool _sending = false;
 
-  Future<void> _takePicture() async {
+  Future<void> _pickCamera() async {
     try {
-      final ImagePicker picker = ImagePicker();
-      final XFile? photo = await picker.pickImage(
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
         source: ImageSource.camera,
-        maxWidth: 1600,
-        maxHeight: 1200,
-        imageQuality: 85,
+        maxWidth: 1600, maxHeight: 1200, imageQuality: 85,
       );
-      if (photo != null && mounted) {
-        setState(() {
-          _imageFile = photo;
-        });
-      }
+      if (photo != null && mounted) setState(() => _image = photo);
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to open camera.')));
+      _snack('Could not open camera.', error: true);
     }
   }
 
-  Future<void> _sendPicture() async {
-    if (_imageFile == null) return;
-    setState(() => _isSending = true);
+  Future<void> _pickGallery() async {
     try {
-      final result = await ApiService.sendPicture(File(_imageFile!.path));
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Picture sent successfully.'),
-        ),
+      final picker = ImagePicker();
+      final photo = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600, maxHeight: 1200, imageQuality: 85,
       );
+      if (photo != null && mounted) setState(() => _image = photo);
     } catch (_) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Failed to send picture.')));
+      _snack('Could not open gallery.', error: true);
     }
-    if (mounted) setState(() => _isSending = false);
   }
+
+  Future<void> _upload() async {
+    if (_image == null) return;
+    setState(() => _sending = true);
+    final res = await ApiService.sendPicture(File(_image!.path));
+    if (!mounted) return;
+    setState(() => _sending = false);
+    _snack(res['message'] as String? ?? res['error'] as String? ?? 'Done',
+        error: res.containsKey('error'));
+  }
+
+  void _snack(String msg, {bool error = false}) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: error ? Colors.red : AppColors.green,
+      ));
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Photo Upload')),
-      body: Container(
-        color: const Color(0xFFF7EFE5),
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 18,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Upload your profile photo',
-                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 10),
-                  const Text(
-                    'Capture a professional photo and send it directly to the backend so recruiters can see your profile clearly.',
-                    style: TextStyle(color: Colors.black54, height: 1.5),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    height: 340,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF5F2EE),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFFE6E0D8)),
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: _imageFile == null
-                          ? Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  Icon(
-                                    Icons.camera_alt,
-                                    size: 66,
-                                    color: Color(0xFF7B1023),
-                                  ),
-                                  SizedBox(height: 16),
-                                  Text(
-                                    'No photo captured yet',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  SizedBox(height: 6),
-                                  Text(
-                                    'Tap Take Photo to capture your image and upload it instantly.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(color: Colors.black54),
-                                  ),
-                                ],
-                              ),
-                            )
-                          : Image.file(
-                              File(_imageFile!.path),
-                              fit: BoxFit.cover,
-                              width: double.infinity,
-                            ),
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _takePicture,
-                    icon: const Icon(Icons.camera_alt),
-                    label: const Text('Take Photo'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: _imageFile == null || _isSending
-                        ? null
-                        : _sendPicture,
-                    icon: _isSending
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.upload_file),
-                    label: Text(
-                      _imageFile == null
-                          ? 'Capture a photo first'
-                          : 'Upload photo',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF14563A),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'The image will be uploaded to your profile and stored securely for use with your internship applications.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.black54, height: 1.5),
-                  ),
-                ],
-              ),
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(title: const Text('Profile Photo')),
+      body: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          GradientBanner(
+            title: 'Upload Profile Photo',
+            subtitle: 'A professional photo helps recruiters recognise you.',
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(22),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(22),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+                  blurRadius: 12, offset: const Offset(0, 4))],
             ),
-          ],
-        ),
+            child: Column(children: [
+              // ── Preview ───────────────────────────────────────────────
+              ClipRRect(
+                borderRadius: BorderRadius.circular(18),
+                child: _image == null
+                    ? Container(
+                        height: 280,
+                        color: AppColors.inputFill,
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.person_outline,
+                                size: 72, color: AppColors.textGrey),
+                            SizedBox(height: 12),
+                            Text('No photo selected',
+                                style: TextStyle(color: AppColors.textGrey,
+                                    fontWeight: FontWeight.w500)),
+                            SizedBox(height: 4),
+                            Text('Tap a button below to get started.',
+                                style: TextStyle(color: AppColors.textGrey,
+                                    fontSize: 12)),
+                          ],
+                        ),
+                      )
+                    : Image.file(File(_image!.path),
+                        height: 280, width: double.infinity,
+                        fit: BoxFit.cover),
+              ),
+              const SizedBox(height: 20),
+
+              // ── Buttons ───────────────────────────────────────────────
+              Row(children: [
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _pickCamera,
+                  icon: const Icon(Icons.camera_alt_outlined),
+                  label: const Text('Camera'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.green,
+                    side: const BorderSide(color: AppColors.green),
+                    minimumSize: const Size(0, 48),
+                  ),
+                )),
+                const SizedBox(width: 12),
+                Expanded(child: OutlinedButton.icon(
+                  onPressed: _pickGallery,
+                  icon: const Icon(Icons.photo_library_outlined),
+                  label: const Text('Gallery'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.burgundy,
+                    side: const BorderSide(color: AppColors.burgundy),
+                    minimumSize: const Size(0, 48),
+                  ),
+                )),
+              ]),
+              const SizedBox(height: 14),
+              _sending
+                  ? const LoadingOverlay()
+                  : ElevatedButton.icon(
+                      onPressed: _image == null ? null : _upload,
+                      icon: const Icon(Icons.cloud_upload_outlined),
+                      label: Text(_image == null
+                          ? 'Select a photo first' : 'Upload Photo'),
+                    ),
+              const SizedBox(height: 12),
+              const Text(
+                'Your photo will be stored securely and shown to recruiters on your profile.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: AppColors.textGrey, fontSize: 12,
+                    height: 1.5),
+              ),
+            ]),
+          ),
+        ],
       ),
     );
   }

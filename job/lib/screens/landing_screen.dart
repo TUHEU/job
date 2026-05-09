@@ -1,362 +1,318 @@
+// lib/screens/landing_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/app_theme.dart';
 
 class LandingScreen extends StatelessWidget {
   const LandingScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
-    final isLoggedIn = user != null && user.id != 'guest';
+    final auth = Provider.of<AuthProvider>(context);
+    final isLoggedIn = auth.isLoggedIn;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF7EFE5),
-      body: Stack(
-        children: [
-          Positioned.fill(child: Container(color: const Color(0xFFF7EFE5))),
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 340,
-            child: Container(
-              decoration: const BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF14563A), Color(0xFF7B1023)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(40),
-                  bottomRight: Radius.circular(40),
-                ),
+      backgroundColor: AppColors.cream,
+      body: Stack(children: [
+        // ── Top gradient header ───────────────────────────────────────────
+        Positioned(
+          top: 0, left: 0, right: 0, height: 360,
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AppColors.green, AppColors.burgundy],
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.only(
+                bottomLeft:  Radius.circular(44),
+                bottomRight: Radius.circular(44),
               ),
             ),
           ),
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Row(
-                        children: const [
-                          Icon(Icons.eco, color: Colors.white, size: 28),
-                          SizedBox(width: 10),
-                          Text(
-                            'Goinus',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                        ],
+        ),
+
+        SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ── Top nav ───────────────────────────────────────────────
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(children: const [
+                      Icon(Icons.eco, color: Colors.white, size: 26),
+                      SizedBox(width: 8),
+                      Text('Goinus', style: TextStyle(
+                          color: Colors.white, fontSize: 22,
+                          fontWeight: FontWeight.w800)),
+                    ]),
+                    Row(children: [
+                      TextButton(
+                        onPressed: () => Navigator.pushNamed(context, '/login'),
+                        child: const Text('Login',
+                            style: TextStyle(color: Colors.white,
+                                fontWeight: FontWeight.w600)),
                       ),
-                      Row(
-                        children: [
-                          TextButton(
+                      const SizedBox(width: 6),
+                      OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Colors.white70),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                        ),
+                        onPressed: () =>
+                            Navigator.pushNamed(context, '/register'),
+                        child: const Text('Sign up'),
+                      ),
+                    ]),
+                  ],
+                ),
+                const SizedBox(height: 22),
+
+                // ── Hero card ─────────────────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.13),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.white24),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Connect. Match. Grow.',
+                          style: TextStyle(color: Colors.white,
+                              fontSize: 28, fontWeight: FontWeight.bold,
+                              height: 1.2)),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Find internships, build your profile, and match with top companies in Cameroon.',
+                        style: TextStyle(color: Colors.white70,
+                            fontSize: 14, height: 1.5),
+                      ),
+                      const SizedBox(height: 20),
+                      Row(children: [
+                        Expanded(
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.burgundy,
+                              minimumSize: const Size(0, 48),
+                            ),
                             onPressed: () =>
                                 Navigator.pushNamed(context, '/login'),
-                            child: const Text(
-                              'Login',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            child: const Text('Login'),
                           ),
-                          const SizedBox(width: 8),
-                          OutlinedButton(
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: OutlinedButton(
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: Colors.white),
+                              side: const BorderSide(color: Colors.white38),
+                              foregroundColor: Colors.white,
+                              minimumSize: const Size(0, 48),
                             ),
                             onPressed: () =>
                                 Navigator.pushNamed(context, '/register'),
-                            child: const Text(
-                              'Create Account',
-                              style: TextStyle(color: Colors.white),
-                            ),
+                            child: const Text('Create Account'),
                           ),
-                        ],
-                      ),
+                        ),
+                      ]),
                     ],
                   ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Connect. Match. Grow.',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'Find internships, update your profile, and build strong matches with companies in one clean experience.',
-                          style: TextStyle(
-                            color: Colors.white70,
-                            fontSize: 16,
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
-                        Row(
-                          children: [
-                            ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF7B1023),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 22,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, '/login'),
-                              child: const Text(
-                                'Login',
-                                style: TextStyle(fontSize: 16),
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Colors.white24),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 22,
-                                  vertical: 14,
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(14),
-                                ),
-                              ),
-                              onPressed: () =>
-                                  Navigator.pushNamed(context, '/register'),
-                              child: const Text(
-                                'Create Account',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 16,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // ── Scrollable body ───────────────────────────────────────
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      const _SectionHeading('Who is Goinus for?'),
+                      const SizedBox(height: 14),
+                      Row(children: [
+                        Expanded(child: _RoleCard(
+                          title: 'Students',
+                          sub: 'Upload your profile, GPA, and documents to get matched.',
+                          icon: Icons.school_outlined,
+                        )),
+                        const SizedBox(width: 14),
+                        Expanded(child: _RoleCard(
+                          title: 'Companies',
+                          sub: 'Post internships and find the best local talent.',
+                          icon: Icons.business_outlined,
+                        )),
+                      ]),
+                      const SizedBox(height: 22),
+                      const _SectionHeading('Key Features'),
+                      const SizedBox(height: 12),
+                      _FeatureRow(Icons.upload_file_outlined,
+                          'Upload CV, transcripts and motivation letter'),
+                      const SizedBox(height: 10),
+                      _FeatureRow(Icons.auto_awesome_outlined,
+                          'Smart matching based on GPA, skills, and field'),
+                      const SizedBox(height: 10),
+                      _FeatureRow(Icons.notifications_active_outlined,
+                          'Track your applications in real-time'),
+                      const SizedBox(height: 24),
+
+                      if (isLoggedIn)
+                        _LoggedInBanner(name: auth.user!.name)
+                      else
+                        _GuestBanner(onContinue: () =>
+                            Navigator.pushNamed(context, '/home')),
+
+                      const SizedBox(height: 24),
+                    ],
                   ),
-                  const SizedBox(height: 26),
-                  Expanded(
-                    child: ListView(
-                      padding: EdgeInsets.zero,
-                      children: [
-                        const Text(
-                          'Student & Company',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF153F28),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildRoleCard(
-                                'Student',
-                                'Profile, GPA, documents, and matches',
-                                Icons.school,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: _buildRoleCard(
-                                'Company',
-                                'Search talent, view profiles, and post offers',
-                                Icons.business,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        const Text(
-                          'Documents & Matching',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF153F28),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        _buildFeatureCard(
-                          'Upload ID, CV, transcript, and motivation letter',
-                          Icons.upload_file,
-                        ),
-                        const SizedBox(height: 12),
-                        _buildFeatureCard(
-                          'Matching based on GPA, skills, and interests',
-                          Icons.home_work,
-                        ),
-                        const SizedBox(height: 26),
-                        if (isLoggedIn)
-                          _buildLoggedInCard(user!.name)
-                        else
-                          _buildGuestCard(),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      ]),
     );
   }
+}
 
-  Widget _buildRoleCard(String title, String subtitle, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFFF2E8DF),
-            child: Icon(icon, color: const Color(0xFF14563A)),
-          ),
-          const SizedBox(height: 18),
-          Text(
-            title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            subtitle,
-            style: const TextStyle(color: Colors.black87, height: 1.4),
-          ),
-        ],
-      ),
-    );
-  }
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.text);
+  final String text;
+  @override
+  Widget build(BuildContext context) => Text(text,
+      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold,
+          color: AppColors.green));
+}
 
-  Widget _buildFeatureCard(String label, IconData icon) {
+class _RoleCard extends StatelessWidget {
+  const _RoleCard({required this.title, required this.sub, required this.icon});
+  final String title, sub;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+            blurRadius: 14, offset: const Offset(0, 6))],
       ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: const Color(0xFF14563A),
-            child: Icon(icon, color: Colors.white),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Text(
-              label,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        CircleAvatar(
+          backgroundColor: AppColors.chipGreen,
+          child: Icon(icon, color: AppColors.green),
+        ),
+        const SizedBox(height: 14),
+        Text(title, style: const TextStyle(
+            fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 6),
+        Text(sub, style: const TextStyle(
+            color: AppColors.textGrey, height: 1.4, fontSize: 13)),
+      ]),
     );
   }
+}
 
-  Widget _buildGuestCard() {
+class _FeatureRow extends StatelessWidget {
+  const _FeatureRow(this.icon, this.label);
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+            blurRadius: 10, offset: const Offset(0, 4))],
+      ),
+      child: Row(children: [
+        CircleAvatar(
+          backgroundColor: AppColors.green,
+          radius: 18,
+          child: Icon(icon, color: Colors.white, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Expanded(child: Text(label, style: const TextStyle(
+            fontWeight: FontWeight.w500, fontSize: 14))),
+      ]),
+    );
+  }
+}
+
+class _GuestBanner extends StatelessWidget {
+  const _GuestBanner({required this.onContinue});
+  final VoidCallback onContinue;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+            blurRadius: 14, offset: const Offset(0, 6))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Text(
-            'Guest mode',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 10),
-          Text(
-            'Continue as guest to browse internships, view matches, and upload documents. Login for a complete company matching experience.',
-            style: TextStyle(height: 1.45),
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Browsing as Guest',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text(
+          'You can explore internships without an account. Login for personalised matches and to track applications.',
+          style: TextStyle(color: AppColors.textGrey, height: 1.45, fontSize: 13),
+        ),
+        const SizedBox(height: 14),
+        TextButton.icon(
+          onPressed: onContinue,
+          icon: const Icon(Icons.arrow_forward, size: 16),
+          label: const Text('Continue as Guest'),
+          style: TextButton.styleFrom(foregroundColor: AppColors.green),
+        ),
+      ]),
     );
   }
+}
 
-  Widget _buildLoggedInCard(String name) {
+class _LoggedInBanner extends StatelessWidget {
+  const _LoggedInBanner({required this.name});
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 28),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 14,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        gradient: const LinearGradient(
+          colors: [AppColors.green, AppColors.greenLight],
+        ),
+        borderRadius: BorderRadius.circular(22),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome back, $name',
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          const Text(
-            'Your dashboard is ready. Tap login again if you want to refresh your profile data.',
-            style: TextStyle(height: 1.45),
-          ),
-        ],
-      ),
+      child: Row(children: [
+        const Icon(Icons.check_circle, color: Colors.white),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('Welcome back, $name!',
+              style: const TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.bold)),
+          const Text('Tap below to go to your dashboard.',
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
+        ])),
+        ElevatedButton(
+          onPressed: () => Navigator.pushNamed(context, '/home'),
+          style: ElevatedButton.styleFrom(backgroundColor: Colors.white,
+              foregroundColor: AppColors.green),
+          child: const Text('Dashboard'),
+        ),
+      ]),
     );
   }
 }

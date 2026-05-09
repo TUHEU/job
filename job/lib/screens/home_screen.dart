@@ -1,320 +1,332 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
 import '../models/internship.dart';
 import '../models/user.dart';
+import '../utils/app_theme.dart';
+import '../widgets/shared_widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
-
   @override
-  HomeScreenState createState() => HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class HomeScreenState extends State<HomeScreen> {
-  bool _isLoading = true;
+class _HomeScreenState extends State<HomeScreen> {
+  bool _loading = true;
   List<Internship> _matches = [];
 
   @override
   void initState() {
     super.initState();
-    _loadMatches();
+    _load();
   }
 
-  Future<void> _loadMatches() async {
+  Future<void> _load() async {
     final matches = await ApiService.getMatches();
     if (!mounted) return;
-    setState(() {
-      _matches = matches;
-      _isLoading = false;
-    });
+    setState(() { _matches = matches; _loading = false; });
+  }
+
+  int _profileStrength(User user) {
+    var s = 40;
+    if (user.gpa != null && user.gpa! >= 2.5) s += 20;
+    if (user.skills != null && user.skills!.isNotEmpty) s += 20;
+    if (user.documents != null && user.documents!.isNotEmpty) s += 20;
+    return s.clamp(0, 100);
   }
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<AuthProvider>(context);
-    final user =
-        userProvider.user ??
-        User(
-          id: 'guest',
-          name: 'Guest User',
-          email: 'guest@jobmatch.cameroon',
-          type: 'intern',
-          skills: ['Local hiring', 'Career coaching'],
-          gpa: 0.0,
-        );
-    final topMatches = _matches.take(3).toList();
-    final profileStrength = _calculateProfileStrength(user);
+    final user = Provider.of<AuthProvider>(context).user ?? User.guest();
+    final strength = _profileStrength(user);
+    final top = _matches.take(3).toList();
 
     return Scaffold(
+      backgroundColor: AppColors.cream,
       appBar: AppBar(
-        title: const Text('Goinus Dashboard'),
+        automaticallyImplyLeading: false,
+        title: Row(children: const [
+          Icon(Icons.eco, size: 20),
+          SizedBox(width: 8),
+          Text('Goinus'),
+        ]),
         actions: [
           IconButton(
-            icon: const Icon(Icons.person),
-            tooltip: 'Profile',
-            onPressed: () => Navigator.pushNamed(context, '/profile'),
+            icon: const Icon(Icons.notifications_outlined),
+            onPressed: () {},
+          ),
+          Padding(
+            padding: const EdgeInsets.only(right: 12),
+            child: GestureDetector(
+              onTap: () => Navigator.pushNamed(context, '/profile'),
+              child: CircleAvatar(
+                radius: 17,
+                backgroundColor: AppColors.burgundy,
+                child: Text(
+                  user.name.isNotEmpty ? user.name[0].toUpperCase() : 'G',
+                  style: const TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ),
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      body: RefreshIndicator(
+        onRefresh: _load,
+        color: AppColors.green,
         child: ListView(
+          padding: const EdgeInsets.all(16),
           children: [
-            Container(
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(26),
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF14563A), Color(0xFF7B1023)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Welcome back',
-                    style: TextStyle(color: Colors.white70, fontSize: 16),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    user.name,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 28,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Your GPA',
-                          style: TextStyle(color: Colors.white70),
-                        ),
-                        const SizedBox(height: 6),
-                        Text(
-                          '${user.gpa?.toStringAsFixed(2) ?? 'N/A'} / 4.00',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        LinearProgressIndicator(
-                          value: profileStrength / 100,
-                          backgroundColor: Colors.white24,
-                          color: Colors.white,
-                          minHeight: 8,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Profile strength: $profileStrength%',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // ── Welcome card ──────────────────────────────────────────────
+            _WelcomeCard(user: user, strength: strength),
+            const SizedBox(height: 18),
+
+            // ── Stats ─────────────────────────────────────────────────────
+            Row(children: [
+              _StatTile('GPA',      user.gpa?.toStringAsFixed(2) ?? 'N/A', Icons.grade_outlined),
+              const SizedBox(width: 10),
+              _StatTile('Matches',  _matches.length.toString(), Icons.favorite_outline),
+              const SizedBox(width: 10),
+              _StatTile('Profile',  '$strength%', Icons.person_outline),
+            ]),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                _buildStatCard('Matches', _matches.length.toString()),
-                _buildStatCard('Applications', '—'),
-                _buildStatCard('Profile', '${profileStrength}%'),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                _buildActionCard(
-                  'Browse',
-                  Icons.search,
-                  () => Navigator.pushNamed(context, '/internships'),
-                ),
-                _buildActionCard(
-                  'Matches',
-                  Icons.favorite,
-                  () => Navigator.pushNamed(context, '/matches'),
-                ),
-                _buildActionCard(
-                  'Documents',
-                  Icons.upload_file,
-                  () => Navigator.pushNamed(context, '/profile'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Top matches for you',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
+
+            // ── Quick actions ─────────────────────────────────────────────
+            const SectionTitle('Quick Actions'),
             const SizedBox(height: 12),
-            _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : topMatches.isEmpty
-                ? const Text('No matches available yet.')
-                : Column(
-                    children: topMatches
-                        .map((item) => _buildMatchCard(item, context))
-                        .toList(),
-                  ),
+            Row(children: [
+              _ActionTile('Browse',    Icons.search,         AppColors.green,
+                  () => Navigator.pushNamed(context, '/internships')),
+              const SizedBox(width: 10),
+              _ActionTile('Matches',   Icons.favorite,       AppColors.burgundy,
+                  () => Navigator.pushNamed(context, '/matches')),
+              const SizedBox(width: 10),
+              _ActionTile('Post',      Icons.add_business,   Colors.teal,
+                  () => Navigator.pushNamed(context, '/post-internship')),
+              const SizedBox(width: 10),
+              _ActionTile('Photo',     Icons.camera_alt,     Colors.indigo,
+                  () => Navigator.pushNamed(context, '/camera')),
+            ]),
+            const SizedBox(height: 22),
+
+            // ── Top matches ───────────────────────────────────────────────
+            SectionTitle('Top Matches For You',
+              trailing: TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/matches'),
+                child: const Text('View all',
+                    style: TextStyle(color: AppColors.burgundy)),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: LoadingOverlay(),
+              )
+            else if (top.isEmpty)
+              EmptyState(
+                icon: Icons.work_off_outlined,
+                message: 'No matches yet',
+                sub: 'Complete your profile to get personalised recommendations.',
+              )
+            else
+              ...top.map((i) => _MatchRow(internship: i)),
           ],
         ),
       ),
+      bottomNavigationBar: GoBottomNav(
+        currentIndex: 0,
+        onTap: (i) {
+          const routes = ['/home', '/matches', '/applications', '/profile'];
+          if (i != 0) Navigator.pushNamed(context, routes[i]);
+        },
+      ),
     );
   }
+}
 
-  Widget _buildStatCard(String label, String value) {
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
+
+class _WelcomeCard extends StatelessWidget {
+  const _WelcomeCard({required this.user, required this.strength});
+  final User user;
+  final int strength;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(24),
+        gradient: const LinearGradient(
+          colors: [AppColors.green, AppColors.burgundy],
+          begin: Alignment.topLeft, end: Alignment.bottomRight,
+        ),
+        boxShadow: [BoxShadow(color: AppColors.green.withOpacity(0.3),
+            blurRadius: 20, offset: const Offset(0, 8))],
+      ),
+      padding: const EdgeInsets.all(24),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Welcome back',
+            style: TextStyle(color: Colors.white70, fontSize: 13)),
+        const SizedBox(height: 4),
+        Text(user.name, style: const TextStyle(color: Colors.white,
+            fontSize: 24, fontWeight: FontWeight.bold)),
+        if (user.major != null) ...[
+          const SizedBox(height: 2),
+          Text(user.major!, style: const TextStyle(
+              color: Colors.white60, fontSize: 13)),
+        ],
+        const SizedBox(height: 18),
+        Row(children: [
+          const Text('Profile Strength',
+              style: TextStyle(color: Colors.white70, fontSize: 12)),
+          const Spacer(),
+          Text('$strength%', style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: strength / 100,
+            backgroundColor: Colors.white24,
+            color: Colors.white,
+            minHeight: 7,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          strength >= 80
+              ? '✓ Keep it up! You\'re almost there.'
+              : 'Add more details to improve your matches.',
+          style: const TextStyle(color: Colors.white60, fontSize: 12),
+        ),
+      ]),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  const _StatTile(this.label, this.value, this.icon);
+  final String label, value;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.only(right: 10),
-        padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 12,
-              offset: const Offset(0, 8),
-            ),
-          ],
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+              blurRadius: 10, offset: const Offset(0, 4))],
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: const TextStyle(color: Colors.grey)),
-            const SizedBox(height: 10),
-            Text(
-              value,
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-            ),
-          ],
-        ),
+        child: Column(children: [
+          Icon(icon, size: 18, color: AppColors.green),
+          const SizedBox(height: 6),
+          Text(value, style: const TextStyle(
+              fontSize: 17, fontWeight: FontWeight.bold,
+              color: AppColors.textDark)),
+          Text(label, style: const TextStyle(
+              fontSize: 10, color: AppColors.textGrey)),
+        ]),
       ),
     );
   }
+}
 
-  Widget _buildActionCard(String label, IconData icon, VoidCallback onTap) {
+class _ActionTile extends StatelessWidget {
+  const _ActionTile(this.label, this.icon, this.color, this.onTap);
+  final String label;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          margin: const EdgeInsets.only(right: 10),
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 8),
-              ),
-            ],
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05),
+                blurRadius: 10, offset: const Offset(0, 4))],
           ),
-          child: Column(
-            children: [
-              CircleAvatar(
-                backgroundColor: const Color(0xFF14563A),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(height: 12),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-            ],
-          ),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            CircleAvatar(radius: 20, backgroundColor: color.withOpacity(0.12),
+                child: Icon(icon, color: color, size: 20)),
+            const SizedBox(height: 8),
+            Text(label, style: const TextStyle(
+                fontSize: 11, fontWeight: FontWeight.w600)),
+          ]),
         ),
       ),
     );
   }
+}
 
-  Widget _buildMatchCard(Internship internship, BuildContext context) {
-    final daysLeft = internship.deadline.difference(DateTime.now()).inDays;
+class _MatchRow extends StatelessWidget {
+  const _MatchRow({required this.internship});
+  final Internship internship;
+
+  @override
+  Widget build(BuildContext context) {
+    final score = internship.matchScore ?? 75;
     return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 16,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04),
+            blurRadius: 10, offset: const Offset(0, 4))],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            internship.companyName,
-            style: const TextStyle(color: Colors.grey),
+      child: Row(children: [
+        CircleAvatar(
+          radius: 22,
+          backgroundColor: AppColors.green.withOpacity(0.1),
+          child: Text(
+            internship.companyName.isNotEmpty
+                ? internship.companyName[0].toUpperCase() : '?',
+            style: const TextStyle(color: AppColors.green,
+                fontWeight: FontWeight.bold),
           ),
-          const SizedBox(height: 6),
-          Text(
-            internship.title,
-            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 10),
-          Text(internship.field, style: const TextStyle(color: Colors.black87)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Chip(
-                label: Text('${(80 + daysLeft).clamp(65, 95)}% match'),
-                backgroundColor: const Color(0xFF14563A).withOpacity(0.1),
+        ),
+        const SizedBox(width: 12),
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(internship.companyName,
+                style: const TextStyle(color: AppColors.textGrey, fontSize: 11)),
+            Text(internship.title, style: const TextStyle(
+                fontWeight: FontWeight.w700, fontSize: 14)),
+            const SizedBox(height: 4),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.green.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(20),
               ),
-              const SizedBox(width: 10),
-              Chip(
-                label: Text(
-                  daysLeft >= 0 ? 'Deadline in $daysLeft days' : 'Closed',
-                ),
-                backgroundColor: const Color(0xFF7B1023).withOpacity(0.1),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pushNamed(context, '/internships'),
-              child: const Text('View details'),
+              child: Text('$score% match', style: const TextStyle(
+                  color: AppColors.green, fontSize: 11,
+                  fontWeight: FontWeight.w600)),
             ),
-          ),
-        ],
-      ),
+          ],
+        )),
+        TextButton(
+          onPressed: () => Navigator.pushNamed(context, '/internships'),
+          child: const Text('View',
+              style: TextStyle(color: AppColors.burgundy)),
+        ),
+      ]),
     );
-  }
-
-  int _calculateProfileStrength(User user) {
-    var strength = 40;
-    if (user.gpa != null && user.gpa! >= 3.0) strength += 20;
-    if (user.skills != null && user.skills!.isNotEmpty) strength += 20;
-    if (user.documents != null && user.documents!.isNotEmpty) strength += 20;
-    return strength.clamp(0, 100);
   }
 }

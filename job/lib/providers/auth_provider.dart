@@ -1,18 +1,21 @@
+// lib/providers/auth_provider.dart
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/user.dart';
 
+/// ChangeNotifier that holds the current logged-in user.
+/// Pattern: Provider (reactive state management)
 class AuthProvider with ChangeNotifier {
   User? _user;
 
   AuthProvider({User? initialUser}) : _user = initialUser;
 
-  User? get user => _user;
-
-  bool get isAuthenticated => _user != null;
+  User? get user          => _user;
+  bool  get isLoggedIn    => _user != null && !(_user!.isGuest);
+  bool  get isGuest       => _user == null || _user!.isGuest;
+  bool  get isIntern      => _user?.isIntern  ?? true;
+  bool  get isCompany     => _user?.isCompany ?? false;
 
   Future<void> setUser(User user) async {
     _user = user;
@@ -21,8 +24,10 @@ class AuthProvider with ChangeNotifier {
     await prefs.setString('user', jsonEncode(user.toJson()));
   }
 
+  Future<void> updateUser(User user) => setUser(user);
+
   Future<void> clearAuth() async {
-    _user = null;
+    _user = User.guest();
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('user');
