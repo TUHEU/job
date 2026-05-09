@@ -1,8 +1,4 @@
 // lib/main.dart
-// FIXES:
-//   1. User.fromJson crash when stored JSON is malformed — wrapped in try/catch
-//   2. Missing route for '/' (caused black screen on some navigation pops)
-//   3. User model used a required positional constructor; now uses named params
 
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -11,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/user.dart';
 import 'providers/auth_provider.dart';
-
 import 'screens/landing_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/register_screen.dart';
@@ -26,24 +21,23 @@ import 'screens/camera_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  User? initialUser;
-
+  User? restoredUser;
   try {
     final prefs = await SharedPreferences.getInstance();
-    final storedUser = prefs.getString('user');
-    if (storedUser != null) {
-      initialUser = User.fromJson(
-        jsonDecode(storedUser) as Map<String, dynamic>,
+    final storedJson = prefs.getString('user');
+    if (storedJson != null) {
+      restoredUser = User.fromJson(
+        jsonDecode(storedJson) as Map<String, dynamic>,
       );
+      if (restoredUser.isGuest) restoredUser = null;
     }
   } catch (_) {
-    // Corrupted prefs — start fresh as guest
-    initialUser = null;
+    restoredUser = null;
   }
 
   runApp(
     ChangeNotifierProvider(
-      create: (_) => AuthProvider(initialUser: initialUser),
+      create: (_) => AuthProvider(initialUser: restoredUser),
       child: const GoinusApp(),
     ),
   );
@@ -120,10 +114,12 @@ class GoinusApp extends StatelessWidget {
         ),
       ),
 
-      // ── Routes ──────────────────────────────────────────────────────────
+      // ── FIX: use home: OR '/' in routes — never both ──────────────────────
+      // home: sets the initial widget directly.
+      // The routes table must NOT contain '/' when home: is set.
       home: const LandingScreen(),
       routes: {
-        '/': (_) => const LandingScreen(),
+        // '/':  ← REMOVED — this caused the crash
         '/home': (_) => const HomeScreen(),
         '/login': (_) => const LoginScreen(),
         '/register': (_) => const RegisterScreen(),

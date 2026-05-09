@@ -1,8 +1,4 @@
 // lib/models/user.dart
-// FIXES:
-//   1. Constructor was positional — now fully named to avoid order crashes
-//   2. fromJson throws on missing keys — all fields now null-safe
-//   3. Added isGuest / isIntern / isCompany helpers used across screens
 
 class User {
   final String id;
@@ -35,7 +31,15 @@ class User {
     this.major,
   });
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
+  // ── Named constructor for guest / unauthenticated state ───────────────────
+  factory User.guest() => const User(
+    id: 'guest',
+    name: 'Guest User',
+    email: 'guest@goinus.cm',
+    type: 'intern',
+  );
+
+  // ── Convenience getters ───────────────────────────────────────────────────
   bool get isGuest => id == 'guest';
   bool get isIntern =>
       type == 'intern' || type == 'jobseeker' || type == 'student';
