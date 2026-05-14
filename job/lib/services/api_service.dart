@@ -1,13 +1,10 @@
 // lib/services/api_service.dart
-// Pattern: Singleton — single HTTP gateway for the whole app
-// Backend: http://192.168.1.191:3000
-
 import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'package:flutter/foundation.dart';
 import '../models/internship.dart';
 import '../models/application.dart';
 
@@ -15,12 +12,13 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
-  // ── Base URL ───────────────────────────────────────────────────────────────
-  // Your PC local IP — works for Android emulator, real phone, and iOS
-  // simulator as long as your phone/emulator is on the same Wi-Fi network.
-  static const String baseUrl = 'http://10.13.195.54:3000';
+  static String get baseUrl {
+    if (kIsWeb) return 'http://localhost:3000';
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
+    if (Platform.isIOS) return 'http://localhost:3000';
+    return 'http://192.168.1.100:3000';
+  }
 
-  // ── Token helpers ──────────────────────────────────────────────────────────
   static Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
@@ -45,19 +43,7 @@ class ApiService {
     };
   }
 
-  // ── Health check ───────────────────────────────────────────────────────────
-  static Future<bool> checkHealth() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$baseUrl/health'))
-          .timeout(const Duration(seconds: 5));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  // ── Auth ───────────────────────────────────────────────────────────────────
+  // Auth
   static Future<Map<String, dynamic>> register(
     String name,
     String email,
@@ -85,14 +71,11 @@ class ApiService {
       );
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       if ((res.statusCode == 200 || res.statusCode == 201) &&
-          data.containsKey('token')) {
+          data.containsKey('token'))
         await setToken(data['token'] as String);
-      }
       return data;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl — is Flask running?'};
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Network error: $e'};
     }
   }
 
@@ -107,27 +90,11 @@ class ApiService {
         body: jsonEncode({'email': email, 'password': password}),
       );
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200 && data.containsKey('token')) {
+      if (res.statusCode == 200 && data.containsKey('token'))
         await setToken(data['token'] as String);
-      }
       return data;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl — is Flask running?'};
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
-    }
-  }
-
-  static Future<Map<String, dynamic>?> getMe() async {
-    try {
-      final headers = await _authHeaders();
-      final res = await http.get(Uri.parse('$baseUrl/me'), headers: headers);
-      if (res.statusCode == 200) {
-        return jsonDecode(res.body) as Map<String, dynamic>;
-      }
-      return null;
-    } catch (_) {
-      return null;
+      return {'error': 'Network error: $e'};
     }
   }
 
@@ -142,14 +109,12 @@ class ApiService {
         body: jsonEncode(data),
       );
       return jsonDecode(res.body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Network error: $e'};
     }
   }
 
-  // ── Internships ────────────────────────────────────────────────────────────
+  // Internships
   static Future<List<Internship>> getInternships({
     String keyword = '',
     String location = '',
@@ -164,14 +129,24 @@ class ApiService {
         },
       );
       final res = await http.get(uri);
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200)
         return (jsonDecode(res.body) as List)
-            .map((e) => Internship.fromJson(e as Map<String, dynamic>))
+            .map((e) => Internship.fromJson(e))
             .toList();
-      }
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
+    }
+  }
+
+  static Future<Internship?> getInternshipById(String id) async {
+    try {
+      final res = await http.get(Uri.parse('$baseUrl/internships/$id'));
+      if (res.statusCode == 200)
+        return Internship.fromJson(jsonDecode(res.body));
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -184,10 +159,6 @@ class ApiService {
     DateTime deadline,
   ) async {
     try {
-      final token = await getToken();
-      if (token == null || token.isEmpty) {
-        return {'error': 'You must be logged in as a company to post.'};
-      }
       final headers = await _authHeaders();
       final res = await http.post(
         Uri.parse('$baseUrl/internships'),
@@ -201,11 +172,9 @@ class ApiService {
           'deadline': deadline.toIso8601String(),
         }),
       );
-      return jsonDecode(res.body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
+      return jsonDecode(res.body);
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Network error: $e'};
     }
   }
 
@@ -216,18 +185,17 @@ class ApiService {
         Uri.parse('$baseUrl/internships/mine'),
         headers: headers,
       );
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200)
         return (jsonDecode(res.body) as List)
-            .map((e) => Internship.fromJson(e as Map<String, dynamic>))
+            .map((e) => Internship.fromJson(e))
             .toList();
-      }
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
 
-  // ── Matches ────────────────────────────────────────────────────────────────
+  // Matches
   static Future<List<Internship>> getMatches() async {
     try {
       final headers = await _authHeaders();
@@ -235,23 +203,21 @@ class ApiService {
         Uri.parse('$baseUrl/matches'),
         headers: headers,
       );
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200)
         return (jsonDecode(res.body) as List)
-            .map((e) => Internship.fromJson(e as Map<String, dynamic>))
+            .map((e) => Internship.fromJson(e))
             .toList();
-      }
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
 
-  // ── Applications ───────────────────────────────────────────────────────────
+  // Applications
   static Future<Map<String, dynamic>> applyForInternship(
     String internshipId, {
     double? gpa,
     String? aboutMe,
-    List<String>? documents,
   }) async {
     try {
       final headers = await _authHeaders();
@@ -260,16 +226,13 @@ class ApiService {
         headers: headers,
         body: jsonEncode({
           'internshipId': internshipId,
-          'gpa': gpa,
-          'aboutMe': aboutMe,
-          'documents': documents,
+          if (gpa != null) 'gpa': gpa,
+          if (aboutMe != null) 'aboutMe': aboutMe,
         }),
       );
-      return jsonDecode(res.body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
+      return jsonDecode(res.body);
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Network error: $e'};
     }
   }
 
@@ -286,15 +249,12 @@ class ApiService {
         },
       );
       final res = await http.get(uri, headers: headers);
-      if (res.statusCode == 200) {
+      if (res.statusCode == 200)
         return (jsonDecode(res.body) as List)
-            .map(
-              (e) => InternshipApplication.fromJson(e as Map<String, dynamic>),
-            )
+            .map((e) => InternshipApplication.fromJson(e))
             .toList();
-      }
       return [];
-    } catch (_) {
+    } catch (e) {
       return [];
     }
   }
@@ -310,116 +270,45 @@ class ApiService {
         headers: headers,
         body: jsonEncode({'status': status}),
       );
-      return jsonDecode(res.body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
+      return jsonDecode(res.body);
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Network error: $e'};
     }
   }
 
-  // ── File uploads ───────────────────────────────────────────────────────────
+  // File uploads
   static Future<Map<String, dynamic>> uploadCV(File cvFile) async {
     try {
       final token = await getToken();
-      if (token == null || token.isEmpty) {
-        return {'error': 'You must be logged in to upload a CV.'};
-      }
+      if (token == null) return {'error': 'Not logged in'};
       final req = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-cv'),
       );
       req.headers['Authorization'] = 'Bearer $token';
-      final ext = cvFile.path.split('.').last.toLowerCase();
-      req.files.add(
-        await http.MultipartFile.fromPath(
-          'cv',
-          cvFile.path,
-          contentType: MediaType(
-            'application',
-            ext == 'pdf' ? 'pdf' : 'octet-stream',
-          ),
-        ),
-      );
-      final streamed = await req.send();
-      final body = await streamed.stream.bytesToString();
-      return jsonDecode(body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
+      req.files.add(await http.MultipartFile.fromPath('cv', cvFile.path));
+      final res = await req.send();
+      final body = await res.stream.bytesToString();
+      return jsonDecode(body);
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
+      return {'error': 'Upload failed: $e'};
     }
   }
 
   static Future<Map<String, dynamic>> sendPicture(File imageFile) async {
     try {
-      final ext = imageFile.path.split('.').last.toLowerCase();
+      final token = await getToken();
       final req = http.MultipartRequest(
         'POST',
         Uri.parse('$baseUrl/upload-photo'),
       );
-      final token = await getToken();
-      if (token != null && token.isNotEmpty) {
-        req.headers['Authorization'] = 'Bearer $token';
-      }
-      req.files.add(
-        await http.MultipartFile.fromPath(
-          'photo',
-          imageFile.path,
-          contentType: MediaType('image', ext == 'png' ? 'png' : 'jpeg'),
-        ),
-      );
-      final streamed = await req.send();
-      final body = await streamed.stream.bytesToString();
-      return jsonDecode(body) as Map<String, dynamic>;
-    } on SocketException {
-      return {'error': 'Cannot reach server at $baseUrl'};
+      if (token != null) req.headers['Authorization'] = 'Bearer $token';
+      req.files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
+      final res = await req.send();
+      final body = await res.stream.bytesToString();
+      return jsonDecode(body);
     } catch (e) {
-      return {'error': 'Unexpected error: $e'};
-    }
-  }
-
-  // ── Analytics ──────────────────────────────────────────────────────────────
-  static Future<Map<String, dynamic>?> getAnalytics(String internshipId) async {
-    try {
-      final headers = await _authHeaders();
-      final res = await http.get(
-        Uri.parse('$baseUrl/analytics/internship/$internshipId'),
-        headers: headers,
-      );
-      if (res.statusCode == 200) {
-        return jsonDecode(res.body) as Map<String, dynamic>;
-      }
-      return null;
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ── Candidate search (company only) ───────────────────────────────────────
-  static Future<List<Map<String, dynamic>>> searchCandidates({
-    String skills = '',
-    String major = '',
-    double? minGpa,
-  }) async {
-    try {
-      final headers = await _authHeaders();
-      final uri = Uri.parse('$baseUrl/candidates').replace(
-        queryParameters: {
-          if (skills.isNotEmpty) 'skills': skills,
-          if (major.isNotEmpty) 'major': major,
-          if (minGpa != null) 'min_gpa': minGpa.toString(),
-        },
-      );
-      final res = await http.get(uri, headers: headers);
-      if (res.statusCode == 200) {
-        return (jsonDecode(res.body) as List)
-            .map((e) => e as Map<String, dynamic>)
-            .toList();
-      }
-      return [];
-    } catch (_) {
-      return [];
+      return {'error': 'Upload failed: $e'};
     }
   }
 }

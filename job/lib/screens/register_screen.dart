@@ -1,15 +1,10 @@
 // lib/screens/register_screen.dart
-// FIXES:
-//   1. Same 'message' vs 'error' key crash as login
-//   2. setUser() not awaited before navigation
-//   3. Loading spinner not reset in finally block
-//   4. Missing mounted guards after every await
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
+import '../utils/app_theme.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -50,7 +45,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     final password = _passwordCtrl.text;
 
     if (name.isEmpty || email.isEmpty || password.isEmpty) {
-      setState(() => _errorMsg = 'Name, email and password are required.');
+      setState(() => _errorMsg = 'All fields are required.');
       return;
     }
     if (password.length < 6) {
@@ -69,7 +64,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
           .map((e) => e.trim())
           .where((e) => e.isNotEmpty)
           .toList();
-
       final result = await ApiService.register(
         name,
         email,
@@ -97,9 +91,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         final msg =
-            result['error'] as String? ??
-            result['message'] as String? ??
-            'Registration failed. Please try again.';
+            result['error'] as String ??
+            result['message'] as String ??
+            'Registration failed.';
         setState(() => _errorMsg = msg);
       }
     } catch (e) {
@@ -112,18 +106,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF0F5132);
-    const burgundy = Color(0xFF7B1023);
-    const cream = Color(0xFFF7EFE5);
-
     return Scaffold(
-      backgroundColor: cream,
-      appBar: AppBar(
-        backgroundColor: green,
-        foregroundColor: Colors.white,
-        title: const Text('Create Account'),
-        elevation: 0,
-      ),
+      backgroundColor: AppColors.cream,
+      appBar: AppBar(title: const Text('Create Account'), elevation: 0),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
@@ -135,17 +120,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A1A1A),
+                  color: AppColors.textDark,
                 ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 8),
               const Text(
-                'Register as a student or company.',
-                style: TextStyle(color: Colors.black54, height: 1.4),
+                'Register as a student or company',
+                style: TextStyle(color: AppColors.textGrey),
               ),
               const SizedBox(height: 24),
-
-              // ── Type selector ─────────────────────────────────────────
+              // Type selector
               Container(
                 decoration: BoxDecoration(
                   color: Colors.white,
@@ -169,24 +153,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-
-              // ── Shared fields ─────────────────────────────────────────
-              _Field('Full Name', _nameCtrl, icon: Icons.person_outline),
+              // Fields
+              _buildField('Full Name', _nameCtrl, Icons.person_outline),
               const SizedBox(height: 14),
-              _Field(
+              _buildField(
                 'Email',
                 _emailCtrl,
-                icon: Icons.email_outlined,
-                type: TextInputType.emailAddress,
+                Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 14),
               TextField(
                 controller: _passwordCtrl,
                 obscureText: _obscure,
-                decoration: _dec(
-                  'Password',
-                  icon: Icons.lock_outline,
-                  suffix: IconButton(
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  prefixIcon: const Icon(Icons.lock_outline),
+                  suffixIcon: IconButton(
                     icon: Icon(
                       _obscure
                           ? Icons.visibility_off_outlined
@@ -196,104 +179,66 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
-
-              // ── Conditional fields ────────────────────────────────────
               if (_type == 'company') ...[
-                _Field(
+                const SizedBox(height: 14),
+                _buildField(
                   'Company Name',
                   _companyCtrl,
-                  icon: Icons.business_outlined,
+                  Icons.business_outlined,
                 ),
               ] else ...[
-                _Field(
-                  'Major / Field of Study',
-                  _majorCtrl,
-                  icon: Icons.school_outlined,
-                ),
                 const SizedBox(height: 14),
-                _Field(
-                  'GPA (e.g. 3.5)',
+                _buildField('Major', _majorCtrl, Icons.school_outlined),
+                const SizedBox(height: 14),
+                _buildField(
+                  'GPA',
                   _gpaCtrl,
-                  icon: Icons.grade_outlined,
-                  type: const TextInputType.numberWithOptions(decimal: true),
+                  Icons.grade_outlined,
+                  keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 14),
-                _Field(
+                _buildField(
                   'Skills (comma separated)',
                   _skillsCtrl,
-                  icon: Icons.label_outline,
-                  hint: 'Python, Excel, Communication…',
+                  Icons.code_outlined,
                 ),
               ],
-
-              // ── Error banner ──────────────────────────────────────────
               if (_errorMsg != null) ...[
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 Container(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.red[50],
+                    color: Colors.red.shade50,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.red.shade200),
                   ),
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.error_outline,
-                        color: Colors.red[700],
-                        size: 18,
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          _errorMsg!,
-                          style: TextStyle(
-                            color: Colors.red[700],
-                            fontSize: 13,
-                          ),
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    _errorMsg!,
+                    style: TextStyle(color: Colors.red.shade700),
                   ),
                 ),
               ],
-
-              const SizedBox(height: 28),
-
+              const SizedBox(height: 32),
               SizedBox(
                 height: 52,
                 child: _loading
                     ? const Center(
-                        child: CircularProgressIndicator(color: burgundy),
+                        child: CircularProgressIndicator(
+                          color: AppColors.burgundy,
+                        ),
                       )
                     : ElevatedButton(
                         onPressed: _register,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: burgundy,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
-                        child: const Text(
-                          'Create Account',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
+                        child: const Text('Create Account'),
                       ),
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: () => Navigator.pop(context),
                 child: const Text(
                   'Already have an account? Login',
-                  style: TextStyle(color: green),
+                  style: TextStyle(color: AppColors.green),
                 ),
               ),
-              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -301,70 +246,43 @@ class _RegisterScreenState extends State<RegisterScreen> {
     );
   }
 
-  InputDecoration _dec(
-    String label, {
-    IconData? icon,
-    Widget? suffix,
-    String? hint,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      hintText: hint,
-      prefixIcon: icon != null ? Icon(icon) : null,
-      suffixIcon: suffix,
-      filled: true,
-      fillColor: Colors.white,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: const BorderSide(color: Color(0xFF0F5132), width: 1.5),
-      ),
-    );
-  }
-
-  Widget _Field(
+  Widget _buildField(
     String label,
-    TextEditingController ctrl, {
-    IconData? icon,
-    TextInputType? type,
-    String? hint,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType? keyboardType,
   }) {
     return TextField(
-      controller: ctrl,
-      keyboardType: type,
-      autocorrect: false,
-      decoration: _dec(label, icon: icon, hint: hint),
+      controller: controller,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(labelText: label, prefixIcon: Icon(icon)),
     );
   }
 }
 
 class _TypeTab extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
   const _TypeTab({
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
   });
-  final String label;
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    const green = Color(0xFF0F5132);
     return Expanded(
       child: GestureDetector(
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
+        child: Container(
           margin: const EdgeInsets.all(4),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? green : Colors.transparent,
+            color: selected ? AppColors.green : Colors.transparent,
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
@@ -372,16 +290,15 @@ class _TypeTab extends StatelessWidget {
             children: [
               Icon(
                 icon,
-                size: 16,
-                color: selected ? Colors.white : Colors.grey,
+                size: 18,
+                color: selected ? Colors.white : AppColors.textGrey,
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               Text(
                 label,
                 style: TextStyle(
-                  color: selected ? Colors.white : Colors.grey,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
-                  fontSize: 13,
+                  color: selected ? Colors.white : AppColors.textGrey,
+                  fontWeight: selected ? FontWeight.bold : FontWeight.normal,
                 ),
               ),
             ],

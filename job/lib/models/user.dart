@@ -1,10 +1,9 @@
 // lib/models/user.dart
-
 class User {
   final String id;
   final String name;
   final String email;
-  final String type; // 'intern' | 'company'
+  final String type;
   final String? company;
   final List<String>? skills;
   final String? cvPath;
@@ -31,21 +30,18 @@ class User {
     this.major,
   });
 
-  // ── Named constructor for guest / unauthenticated state ───────────────────
   factory User.guest() => const User(
     id: 'guest',
     name: 'Guest User',
-    email: 'guest@goinus.cm',
+    email: 'guest@goinus.com',
     type: 'intern',
   );
 
-  // ── Convenience getters ───────────────────────────────────────────────────
   bool get isGuest => id == 'guest';
   bool get isIntern =>
       type == 'intern' || type == 'jobseeker' || type == 'student';
   bool get isCompany => type == 'company' || type == 'employer';
 
-  // ── Serialisation ──────────────────────────────────────────────────────────
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: (json['id'] as String?) ?? 'guest',
@@ -95,19 +91,21 @@ class User {
     List<String>? documents,
     String? photoUrl,
     String? major,
-  }) => User(
-    id: id,
-    name: name ?? this.name,
-    email: email ?? this.email,
-    type: type ?? this.type,
-    company: company ?? this.company,
-    skills: skills ?? this.skills,
-    cvPath: cvPath ?? this.cvPath,
-    gpa: gpa ?? this.gpa,
-    aboutMe: aboutMe ?? this.aboutMe,
-    educationHistory: educationHistory ?? this.educationHistory,
-    documents: documents ?? this.documents,
-    photoUrl: photoUrl ?? this.photoUrl,
-    major: major ?? this.major,
-  );
+  }) {
+    return User(
+      id: id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      type: type ?? this.type,
+      company: company ?? this.company,
+      skills: skills ?? this.skills,
+      cvPath: cvPath ?? this.cvPath,
+      gpa: gpa ?? this.gpa,
+      aboutMe: aboutMe ?? this.aboutMe,
+      educationHistory: educationHistory ?? this.educationHistory,
+      documents: documents ?? this.documents,
+      photoUrl: photoUrl ?? this.photoUrl,
+      major: major ?? this.major,
+    );
+  }
 }

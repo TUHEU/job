@@ -1,5 +1,4 @@
 // lib/screens/profile_screen.dart
-
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
@@ -12,6 +11,7 @@ import '../widgets/shared_widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
@@ -35,21 +35,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _prefill();
   }
 
-  @override
-  void dispose() {
-    _gpaCtrl.dispose();
-    _aboutCtrl.dispose();
-    _educCtrl.dispose();
-    _majorCtrl.dispose();
-    _skillsCtrl.dispose();
-    _companyCtrl.dispose();
-    _industryCtrl.dispose();
-    _locationCtrl.dispose();
-    super.dispose();
-  }
-
   void _prefill() {
-    // AuthProvider.user is non-nullable — no null check needed
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     _gpaCtrl.text = user.gpa?.toStringAsFixed(2) ?? '';
     _aboutCtrl.text = user.aboutMe ?? '';
@@ -65,7 +51,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final user = auth.user;
 
     final Map<String, dynamic> payload;
-
     if (user.isIntern) {
       payload = {
         'gpa': double.tryParse(_gpaCtrl.text),
@@ -106,19 +91,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             : AppColors.green,
       ),
     );
-
     if (mounted) setState(() => _saving = false);
   }
 
   Future<void> _uploadDoc() async {
     final result = await FilePicker.platform.pickFiles(
       type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'png'],
+      allowedExtensions: ['pdf', 'doc', 'docx'],
     );
     if (result == null || result.files.single.path == null) return;
+
     setState(() => _uploading = true);
     final res = await ApiService.uploadCV(File(result.files.single.path!));
     if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -142,7 +128,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Non-nullable — direct access, no ?? fallback
     final user = Provider.of<AuthProvider>(context).user;
 
     return Scaffold(
@@ -150,11 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       appBar: AppBar(
         title: const Text('Profile'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'Logout',
-            onPressed: _logout,
-          ),
+          IconButton(icon: const Icon(Icons.logout), onPressed: _logout),
         ],
       ),
       body: ListView(
@@ -162,24 +143,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         children: [
           _ProfileHeader(user: user),
           const SizedBox(height: 16),
-
-          // ── Personal info ───────────────────────────────────────────
           _Section(
             title: 'Personal Info',
             child: Column(
               children: [
                 _InfoRow('Name', user.name),
                 _InfoRow('Email', user.email),
-                _InfoRow(
-                  'Role',
-                  user.isIntern ? 'Student / Intern' : 'Company',
-                ),
+                _InfoRow('Role', user.isIntern ? 'Student' : 'Company'),
               ],
             ),
           ),
           const SizedBox(height: 14),
-
-          // ── Editable fields ─────────────────────────────────────────
           if (user.isIntern)
             _Section(
               title: 'Academic Info',
@@ -188,9 +162,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   GoTextField(
                     label: 'GPA',
                     controller: _gpaCtrl,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
-                    ),
+                    keyboardType: TextInputType.number,
                     prefixIcon: Icons.grade_outlined,
                   ),
                   const SizedBox(height: 12),
@@ -203,7 +175,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   GoTextField(
                     label: 'Skills (comma separated)',
                     controller: _skillsCtrl,
-                    prefixIcon: Icons.label_outline,
+                    prefixIcon: Icons.code_outlined,
                   ),
                   const SizedBox(height: 12),
                   GoTextField(
@@ -251,7 +223,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
             ),
-
           const SizedBox(height: 14),
           _saving
               ? const LoadingOverlay()
@@ -260,14 +231,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   icon: const Icon(Icons.save_outlined),
                   label: const Text('Save Profile'),
                 ),
-
           const SizedBox(height: 20),
-
-          // ── Documents ───────────────────────────────────────────────
           _Section(
             title: 'Documents',
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (user.documents != null && user.documents!.isNotEmpty)
                   ...user.documents!.map(
@@ -281,20 +248,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: AppColors.burgundy,
                           ),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              d,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
+                          Expanded(child: Text(d)),
                         ],
                       ),
                     ),
-                  )
-                else
-                  const Text(
-                    'No documents uploaded yet.',
-                    style: TextStyle(color: AppColors.textGrey),
                   ),
                 const SizedBox(height: 14),
                 _uploading
@@ -302,27 +259,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     : OutlinedButton.icon(
                         onPressed: _uploadDoc,
                         icon: const Icon(Icons.upload_file),
-                        label: const Text('Upload Document'),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.green,
-                          side: const BorderSide(color: AppColors.green),
-                          minimumSize: const Size(double.infinity, 48),
-                        ),
+                        label: const Text('Upload CV/Resume'),
                       ),
               ],
             ),
           ),
           const SizedBox(height: 14),
-
           OutlinedButton.icon(
             onPressed: () => Navigator.pushNamed(context, '/camera'),
             icon: const Icon(Icons.camera_alt_outlined),
             label: const Text('Update Profile Photo'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.burgundy,
-              side: const BorderSide(color: AppColors.burgundy),
-              minimumSize: const Size(double.infinity, 48),
-            ),
           ),
           const SizedBox(height: 28),
         ],
@@ -338,11 +284,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 }
 
-// ── Sub-widgets ───────────────────────────────────────────────────────────────
-
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.user});
   final User user;
+  const _ProfileHeader({required this.user});
 
   @override
   Widget build(BuildContext context) {
@@ -351,16 +295,10 @@ class _ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.green, AppColors.greenLight],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
-          BoxShadow(
-            color: AppColors.green.withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
+          BoxShadow(color: AppColors.green.withOpacity(0.25), blurRadius: 16),
         ],
       ),
       child: Row(
@@ -407,11 +345,7 @@ class _ProfileHeader extends StatelessWidget {
                     ),
                     child: Text(
                       'GPA ${user.gpa!.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: const TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ),
                 ],
@@ -425,9 +359,9 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _Section extends StatelessWidget {
-  const _Section({required this.title, required this.child});
   final String title;
   final Widget child;
+  const _Section({required this.title, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -437,11 +371,7 @@ class _Section extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
         ],
       ),
       child: Column(
@@ -449,11 +379,7 @@ class _Section extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: AppColors.textDark,
-            ),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 14),
           child,
@@ -464,8 +390,8 @@ class _Section extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
-  const _InfoRow(this.label, this.value);
   final String label, value;
+  const _InfoRow(this.label, this.value);
 
   @override
   Widget build(BuildContext context) {

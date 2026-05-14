@@ -1,79 +1,101 @@
 // lib/screens/applications_screen.dart
 import 'package:flutter/material.dart';
-import '../services/api_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/application_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/application.dart';
 import '../utils/app_theme.dart';
 import '../widgets/shared_widgets.dart';
 
 class ApplicationsScreen extends StatefulWidget {
   const ApplicationsScreen({super.key});
+
   @override
   State<ApplicationsScreen> createState() => _ApplicationsScreenState();
 }
 
 class _ApplicationsScreenState extends State<ApplicationsScreen> {
-  List<InternshipApplication> _apps = [];
-  bool _loading = true;
-
   @override
   void initState() {
     super.initState();
-    _load();
+    _loadApplications();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
-    final apps = await ApiService.getApplications();
-    if (!mounted) return;
-    setState(() { _apps = apps; _loading = false; });
+  Future<void> _loadApplications() async {
+    final provider = Provider.of<ApplicationProvider>(context, listen: false);
+    await provider.loadApplications();
   }
 
   Future<void> _updateStatus(String id, String status) async {
-    await ApiService.updateApplicationStatus(id, status);
-    _load();
+    final provider = Provider.of<ApplicationProvider>(context, listen: false);
+    final success = await provider.updateApplicationStatus(id, status);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(success ? 'Status updated to $status' : 'Failed'),
+          backgroundColor: success ? AppColors.green : Colors.red,
+        ),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
+    final provider = Provider.of<ApplicationProvider>(context);
+    final applications = provider.applications;
+    final isLoading = provider.isLoading;
+
     return Scaffold(
       backgroundColor: AppColors.cream,
       appBar: AppBar(title: const Text('My Applications')),
-      body: _loading
-          ? const LoadingOverlay()
-          : _apps.isEmpty
-          ? Column(children: [
-              GradientBanner(
-                title: 'Your Applications',
-                subtitle: 'Track all your internship applications here.',
-              ),
-              const SizedBox(height: 40),
-              EmptyState(
-                icon: Icons.description_outlined,
-                message: 'No applications yet',
-                sub: 'Browse internships and hit Apply to get started.',
-              ),
-            ])
-          : RefreshIndicator(
-              onRefresh: _load,
-              color: AppColors.green,
-              child: ListView(
+      body: RefreshIndicator(
+        onRefresh: _loadApplications,
+        color: AppColors.green,
+        child: isLoading
+            ? const LoadingOverlay()
+            : applications.isEmpty
+            ? Column(
+                children: [
+                  const GradientBanner(
+                    title: 'Your Applications',
+                    subtitle: 'Track all your internship applications here.',
+                  ),
+                  const SizedBox(height: 40),
+                  const EmptyState(
+                    icon: Icons.description_outlined,
+                    message: 'No applications yet',
+                    sub: 'Browse internships and hit Apply to get started.',
+                  ),
+                ],
+              )
+            : ListView(
                 padding: const EdgeInsets.only(bottom: 24),
                 children: [
                   GradientBanner(
                     title: 'Your Applications',
                     subtitle: 'Track all your internship applications here.',
                     chip: Chip(
-                      label: Text('${_apps.length} application${_apps.length == 1 ? '' : 's'}'),
+                      label: Text(
+                        '${applications.length} application${applications.length == 1 ? '' : 's'}',
+                      ),
                       backgroundColor: Colors.white24,
-                      labelStyle: const TextStyle(color: Colors.white,
-                          fontSize: 12),
+                      labelStyle: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  ..._apps.map((a) => _AppCard(app: a, onStatus: _updateStatus)),
+                  ...applications.map(
+                    (a) => _AppCard(
+                      app: a,
+                      onStatus: auth.isCompany ? _updateStatus : null,
+                    ),
+                  ),
                 ],
               ),
-            ),
+      ),
       bottomNavigationBar: GoBottomNav(
         currentIndex: 2,
         onTap: (i) {
@@ -86,79 +108,109 @@ class _ApplicationsScreenState extends State<ApplicationsScreen> {
 }
 
 class _AppCard extends StatelessWidget {
-  const _AppCard({required this.app, required this.onStatus});
   final InternshipApplication app;
-  final Future<void> Function(String id, String status) onStatus;
+  final Future<void> Function(String id, String status)? onStatus;
+
+  const _AppCard({required this.app, this.onStatus});
 
   @override
   Widget build(BuildContext context) {
-    return GoCard(
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          Expanded(child: Text('Application #${app.id.substring(0, 8)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14))),
-          StatusBadge(app.status),
-        ]),
-        const SizedBox(height: 10),
-        _Row('Internship ID', app.internshipId.substring(0, 8)),
-        if (app.gpa != null) _Row('GPA', app.gpa!.toStringAsFixed(2)),
-        if (app.aboutMe != null && app.aboutMe!.isNotEmpty)
-          _Row('About', app.aboutMe!),
-        if (app.createdAt != null)
-          _Row('Applied', app.createdAt!.split('T').first),
-        if (app.documents != null && app.documents!.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          const Text('Documents', style: TextStyle(
-              fontWeight: FontWeight.w600, fontSize: 13,
-              color: AppColors.textGrey)),
-          const SizedBox(height: 4),
-          ...app.documents!.map((d) => Row(children: [
-            const Icon(Icons.attach_file, size: 14, color: AppColors.textGrey),
-            const SizedBox(width: 4),
-            Text(d, style: const TextStyle(fontSize: 13,
-                color: AppColors.textGrey)),
-          ])),
-        ],
-        const Divider(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(
+        context,
+        '/application-detail',
+        arguments: {'id': app.id},
+      ),
+      child: GoCard(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Update Status',
-                style: TextStyle(fontSize: 13,
-                    color: AppColors.textGrey)),
-            DropdownButton<String>(
-              value: app.status,
-              underline: const SizedBox(),
-              borderRadius: BorderRadius.circular(12),
-              items: const [
-                DropdownMenuItem(value: 'pending',  child: Text('Pending')),
-                DropdownMenuItem(value: 'accepted', child: Text('Accepted')),
-                DropdownMenuItem(value: 'rejected', child: Text('Rejected')),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Application #${app.id.substring(0, 8)}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+                StatusBadge(app.status),
               ],
-              onChanged: (v) {
-                if (v != null) onStatus(app.id, v);
-              },
             ),
+            const SizedBox(height: 10),
+            _Row('Internship ID', app.internshipId.substring(0, 8)),
+            if (app.gpa != null) _Row('GPA', app.gpa!.toStringAsFixed(2)),
+            if (app.aboutMe != null && app.aboutMe!.isNotEmpty)
+              _Row(
+                'About',
+                app.aboutMe!.length > 50
+                    ? '${app.aboutMe!.substring(0, 50)}...'
+                    : app.aboutMe!,
+              ),
+            if (app.createdAt != null)
+              _Row('Applied', app.createdAt!.split('T').first),
+            if (onStatus != null && app.status == 'pending') ...[
+              const Divider(),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Update Status',
+                    style: TextStyle(color: AppColors.textGrey),
+                  ),
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () => onStatus!(app.id, 'accepted'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: AppColors.green,
+                        ),
+                        child: const Text('Accept'),
+                      ),
+                      TextButton(
+                        onPressed: () => onStatus!(app.id, 'rejected'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                        child: const Text('Reject'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ],
           ],
         ),
-      ]),
+      ),
     );
   }
 }
 
 class _Row extends StatelessWidget {
-  const _Row(this.label, this.value);
   final String label, value;
+  const _Row(this.label, this.value);
+
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 4),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        SizedBox(width: 90, child: Text('$label:',
-            style: const TextStyle(color: AppColors.textGrey, fontSize: 13))),
-        Expanded(child: Text(value,
-            style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13))),
-      ]),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(
+              '$label:',
+              style: const TextStyle(color: AppColors.textGrey, fontSize: 13),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

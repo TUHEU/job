@@ -3,22 +3,20 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   AppColors._();
-
-  static const green      = Color(0xFF0F5132);
+  static const green = Color(0xFF0F5132);
   static const greenLight = Color(0xFF14563A);
-  static const burgundy   = Color(0xFF7B1023);
-  static const cream      = Color(0xFFF7EFE5);
-  static const cardBg     = Colors.white;
-  static const textDark   = Color(0xFF1A1A1A);
-  static const textGrey   = Color(0xFF6B7280);
-  static const chipGreen  = Color(0xFFE9F6F0);
-  static const chipRed    = Color(0xFFF5E7E9);
-  static const inputFill  = Color(0xFFF5F2EE);
+  static const burgundy = Color(0xFF7B1023);
+  static const cream = Color(0xFFF7EFE5);
+  static const cardBg = Colors.white;
+  static const textDark = Color(0xFF1A1A1A);
+  static const textGrey = Color(0xFF6B7280);
+  static const chipGreen = Color(0xFFE9F6F0);
+  static const chipRed = Color(0xFFF5E7E9);
+  static const inputFill = Color(0xFFF5F2EE);
 }
 
 class AppTheme {
   AppTheme._();
-
   static ThemeData get light => ThemeData(
     useMaterial3: true,
     colorScheme: ColorScheme.fromSeed(
@@ -68,6 +66,7 @@ class AppTheme {
       color: Colors.white,
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
     ),
   );
 }
