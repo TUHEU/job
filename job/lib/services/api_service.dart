@@ -18,7 +18,7 @@ class ApiService {
   // ── Base URL ───────────────────────────────────────────────────────────────
   // Your PC local IP — works for Android emulator, real phone, and iOS
   // simulator as long as your phone/emulator is on the same Wi-Fi network.
-  static const String baseUrl = 'http://192.168.1.191:3000';
+  static const String baseUrl = 'http://10.13.195.54:3000';
 
   // ── Token helpers ──────────────────────────────────────────────────────────
   static Future<String?> getToken() async {
