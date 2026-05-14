@@ -1,7 +1,7 @@
 // lib/screens/profile_screen.dart
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../services/api_service.dart';
@@ -35,6 +35,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _prefill();
   }
 
+  @override
+  void dispose() {
+    _gpaCtrl.dispose();
+    _aboutCtrl.dispose();
+    _educCtrl.dispose();
+    _majorCtrl.dispose();
+    _skillsCtrl.dispose();
+    _companyCtrl.dispose();
+    _industryCtrl.dispose();
+    _locationCtrl.dispose();
+    super.dispose();
+  }
+
   void _prefill() {
     final user = Provider.of<AuthProvider>(context, listen: false).user;
     _gpaCtrl.text = user.gpa?.toStringAsFixed(2) ?? '';
@@ -43,6 +56,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     _majorCtrl.text = user.major ?? '';
     _skillsCtrl.text = user.skills?.join(', ') ?? '';
     _companyCtrl.text = user.company ?? '';
+    _industryCtrl.text = user.industry ?? '';
+    _locationCtrl.text = user.location ?? '';
   }
 
   Future<void> _save() async {
@@ -94,28 +109,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (mounted) setState(() => _saving = false);
   }
 
+  // FIXED: Using image_picker instead of file_picker
   Future<void> _uploadDoc() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['pdf', 'doc', 'docx'],
-    );
-    if (result == null || result.files.single.path == null) return;
+    try {
+      final ImagePicker picker = ImagePicker();
+      final XFile? file = await picker.pickImage(source: ImageSource.gallery);
 
-    setState(() => _uploading = true);
-    final res = await ApiService.uploadCV(File(result.files.single.path!));
-    if (!mounted) return;
+      if (file == null) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          res['message'] as String? ?? res['error'] as String? ?? 'Done',
-        ),
-        backgroundColor: res.containsKey('error')
-            ? Colors.red
-            : AppColors.green,
-      ),
-    );
-    if (mounted) setState(() => _uploading = false);
+      setState(() => _uploading = true);
+
+      final res = await ApiService.uploadCV(File(file.path));
+
+      if (!mounted) return;
+
+      if (res.containsKey('error')) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(res['error'] as String),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              res['message'] as String? ?? 'File uploaded successfully!',
+            ),
+            backgroundColor: AppColors.green,
+          ),
+        );
+
+        // Refresh user data
+        final auth = Provider.of<AuthProvider>(context, listen: false);
+        final me = await ApiService.getMe();
+        if (me != null) {
+          await auth.setUser(User.fromJson(me));
+        }
+      }
+
+      if (mounted) setState(() => _uploading = false);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _uploading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _logout() async {
@@ -162,7 +206,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   GoTextField(
                     label: 'GPA',
                     controller: _gpaCtrl,
-                    keyboardType: TextInputType.number,
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
                     prefixIcon: Icons.grade_outlined,
                   ),
                   const SizedBox(height: 12),
@@ -235,6 +281,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _Section(
             title: 'Documents',
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (user.documents != null && user.documents!.isNotEmpty)
                   ...user.documents!.map(
@@ -252,14 +299,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+                  )
+                else
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 8),
+                    child: Text(
+                      'No documents uploaded yet.',
+                      style: TextStyle(color: AppColors.textGrey),
+                    ),
                   ),
                 const SizedBox(height: 14),
                 _uploading
-                    ? const LoadingOverlay()
+                    ? const Center(child: CircularProgressIndicator())
                     : OutlinedButton.icon(
                         onPressed: _uploadDoc,
                         icon: const Icon(Icons.upload_file),
                         label: const Text('Upload CV/Resume'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColors.green,
+                          side: const BorderSide(color: AppColors.green),
+                        ),
                       ),
               ],
             ),
@@ -269,6 +328,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: () => Navigator.pushNamed(context, '/camera'),
             icon: const Icon(Icons.camera_alt_outlined),
             label: const Text('Update Profile Photo'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.burgundy,
+              side: const BorderSide(color: AppColors.burgundy),
+            ),
           ),
           const SizedBox(height: 28),
         ],
@@ -295,10 +358,16 @@ class _ProfileHeader extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: const LinearGradient(
           colors: [AppColors.green, AppColors.greenLight],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
-          BoxShadow(color: AppColors.green.withOpacity(0.25), blurRadius: 16),
+          BoxShadow(
+            color: AppColors.green.withOpacity(0.25),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
         ],
       ),
       child: Row(
@@ -345,7 +414,11 @@ class _ProfileHeader extends StatelessWidget {
                     ),
                     child: Text(
                       'GPA ${user.gpa!.toStringAsFixed(2)}',
-                      style: const TextStyle(color: Colors.white, fontSize: 12),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ],
@@ -371,7 +444,11 @@ class _Section extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -379,7 +456,11 @@ class _Section extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.textDark,
+            ),
           ),
           const SizedBox(height: 14),
           child,
@@ -409,7 +490,11 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+                color: AppColors.textDark,
+              ),
             ),
           ),
         ],

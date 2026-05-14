@@ -13,6 +13,8 @@ class User {
   final List<String>? documents;
   final String? photoUrl;
   final String? major;
+  final String? industry; // ADDED for company
+  final String? location; // ADDED for company
 
   const User({
     required this.id,
@@ -28,6 +30,8 @@ class User {
     this.documents,
     this.photoUrl,
     this.major,
+    this.industry,
+    this.location,
   });
 
   factory User.guest() => const User(
@@ -59,6 +63,8 @@ class User {
           .toList(),
       photoUrl: json['photoUrl'] as String?,
       major: json['major'] as String?,
+      industry: json['industry'] as String?, // ADDED
+      location: json['location'] as String?, // ADDED
     );
   }
 
@@ -76,6 +82,8 @@ class User {
     'documents': documents,
     'photoUrl': photoUrl,
     'major': major,
+    'industry': industry, // ADDED
+    'location': location, // ADDED
   };
 
   User copyWith({
@@ -91,6 +99,8 @@ class User {
     List<String>? documents,
     String? photoUrl,
     String? major,
+    String? industry,
+    String? location,
   }) {
     return User(
       id: id,
@@ -106,6 +116,8 @@ class User {
       documents: documents ?? this.documents,
       photoUrl: photoUrl ?? this.photoUrl,
       major: major ?? this.major,
+      industry: industry ?? this.industry,
+      location: location ?? this.location,
     );
   }
 }

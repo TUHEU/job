@@ -37,8 +37,8 @@ dependencies:
   http: ^1.1.0
   shared_preferences: ^2.2.2
   provider: ^6.0.5
-  file_picker: ^6.1.1
-  image_picker: ^0.8.8+6
+  file_picker: ^11.0.2
+  image_picker: ^1.2.2
   http_parser: ^4.0.2
 
 dev_dependencies:
@@ -51,6 +51,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4  # For generating app icons
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -64,9 +65,10 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
-  #   - images/a_dot_ham.jpeg
+  assets:
+    - assets/job.png
+    # Add other assets here if needed
+    # - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images
@@ -93,3 +95,23 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
+# App Icon Configuration
+# Run: flutter pub run flutter_launcher_icons
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "assets/job.png"
+  min_sdk_android: 21
+  web:
+    generate: true
+    image_path: "assets/job.png"
+    background_color: "#0F5132"
+    theme_color: "#0F5132"
+  windows:
+    generate: true
+    image_path: "assets/job.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "assets/job.png"

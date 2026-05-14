@@ -12,11 +12,12 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
+  // Dynamic Base URL Configuration
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:3000';
     if (Platform.isAndroid) return 'http://10.0.2.2:3000';
     if (Platform.isIOS) return 'http://localhost:3000';
-    return 'http://192.168.1.100:3000';
+    return 'http://192.168.1.100:3000'; // Update with your IP
   }
 
   static Future<String?> getToken() async {
@@ -71,8 +72,9 @@ class ApiService {
       );
       final data = jsonDecode(res.body) as Map<String, dynamic>;
       if ((res.statusCode == 200 || res.statusCode == 201) &&
-          data.containsKey('token'))
+          data.containsKey('token')) {
         await setToken(data['token'] as String);
+      }
       return data;
     } catch (e) {
       return {'error': 'Network error: $e'};
@@ -90,11 +92,27 @@ class ApiService {
         body: jsonEncode({'email': email, 'password': password}),
       );
       final data = jsonDecode(res.body) as Map<String, dynamic>;
-      if (res.statusCode == 200 && data.containsKey('token'))
+      if (res.statusCode == 200 && data.containsKey('token')) {
         await setToken(data['token'] as String);
+      }
       return data;
     } catch (e) {
       return {'error': 'Network error: $e'};
+    }
+  }
+
+  // FIXED: Added getMe method
+  static Future<Map<String, dynamic>?> getMe() async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.get(Uri.parse('$baseUrl/me'), headers: headers);
+      if (res.statusCode == 200) {
+        return jsonDecode(res.body) as Map<String, dynamic>;
+      }
+      return null;
+    } catch (e) {
+      print('Error getting user: $e');
+      return null;
     }
   }
 
@@ -129,10 +147,11 @@ class ApiService {
         },
       );
       final res = await http.get(uri);
-      if (res.statusCode == 200)
+      if (res.statusCode == 200) {
         return (jsonDecode(res.body) as List)
             .map((e) => Internship.fromJson(e))
             .toList();
+      }
       return [];
     } catch (e) {
       return [];
@@ -142,8 +161,9 @@ class ApiService {
   static Future<Internship?> getInternshipById(String id) async {
     try {
       final res = await http.get(Uri.parse('$baseUrl/internships/$id'));
-      if (res.statusCode == 200)
+      if (res.statusCode == 200) {
         return Internship.fromJson(jsonDecode(res.body));
+      }
       return null;
     } catch (e) {
       return null;
@@ -185,13 +205,27 @@ class ApiService {
         Uri.parse('$baseUrl/internships/mine'),
         headers: headers,
       );
-      if (res.statusCode == 200)
+      if (res.statusCode == 200) {
         return (jsonDecode(res.body) as List)
             .map((e) => Internship.fromJson(e))
             .toList();
+      }
       return [];
     } catch (e) {
       return [];
+    }
+  }
+
+  static Future<Map<String, dynamic>> deleteInternship(String id) async {
+    try {
+      final headers = await _authHeaders();
+      final res = await http.delete(
+        Uri.parse('$baseUrl/internships/$id'),
+        headers: headers,
+      );
+      return jsonDecode(res.body);
+    } catch (e) {
+      return {'error': 'Network error: $e'};
     }
   }
 
@@ -203,10 +237,11 @@ class ApiService {
         Uri.parse('$baseUrl/matches'),
         headers: headers,
       );
-      if (res.statusCode == 200)
+      if (res.statusCode == 200) {
         return (jsonDecode(res.body) as List)
             .map((e) => Internship.fromJson(e))
             .toList();
+      }
       return [];
     } catch (e) {
       return [];
@@ -218,6 +253,7 @@ class ApiService {
     String internshipId, {
     double? gpa,
     String? aboutMe,
+    List<String>? documents,
   }) async {
     try {
       final headers = await _authHeaders();
@@ -228,6 +264,7 @@ class ApiService {
           'internshipId': internshipId,
           if (gpa != null) 'gpa': gpa,
           if (aboutMe != null) 'aboutMe': aboutMe,
+          if (documents != null) 'documents': documents,
         }),
       );
       return jsonDecode(res.body);
@@ -249,10 +286,11 @@ class ApiService {
         },
       );
       final res = await http.get(uri, headers: headers);
-      if (res.statusCode == 200)
+      if (res.statusCode == 200) {
         return (jsonDecode(res.body) as List)
             .map((e) => InternshipApplication.fromJson(e))
             .toList();
+      }
       return [];
     } catch (e) {
       return [];
@@ -281,15 +319,15 @@ class ApiService {
     try {
       final token = await getToken();
       if (token == null) return {'error': 'Not logged in'};
-      final req = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/upload-cv'),
-      );
-      req.headers['Authorization'] = 'Bearer $token';
-      req.files.add(await http.MultipartFile.fromPath('cv', cvFile.path));
-      final res = await req.send();
-      final body = await res.stream.bytesToString();
-      return jsonDecode(body);
+
+      final uri = Uri.parse('$baseUrl/upload-cv');
+      final request = http.MultipartRequest('POST', uri);
+      request.headers['Authorization'] = 'Bearer $token';
+      request.files.add(await http.MultipartFile.fromPath('cv', cvFile.path));
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      return jsonDecode(responseBody);
     } catch (e) {
       return {'error': 'Upload failed: $e'};
     }
@@ -298,15 +336,18 @@ class ApiService {
   static Future<Map<String, dynamic>> sendPicture(File imageFile) async {
     try {
       final token = await getToken();
-      final req = http.MultipartRequest(
-        'POST',
-        Uri.parse('$baseUrl/upload-photo'),
+      final uri = Uri.parse('$baseUrl/upload-photo');
+      final request = http.MultipartRequest('POST', uri);
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      request.files.add(
+        await http.MultipartFile.fromPath('photo', imageFile.path),
       );
-      if (token != null) req.headers['Authorization'] = 'Bearer $token';
-      req.files.add(await http.MultipartFile.fromPath('photo', imageFile.path));
-      final res = await req.send();
-      final body = await res.stream.bytesToString();
-      return jsonDecode(body);
+
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      return jsonDecode(responseBody);
     } catch (e) {
       return {'error': 'Upload failed: $e'};
     }

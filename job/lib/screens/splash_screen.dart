@@ -1,4 +1,4 @@
-// lib/screens/splash_screen.dart
+// lib/screens/splash_screen.dart - Updated with your icon
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
@@ -38,13 +38,22 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
+            // Your app icon image
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white.withOpacity(0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.eco, size: 60, color: Colors.white),
+              child: Image.asset(
+                'assets/images/job.png',
+                width: 80,
+                height: 80,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback if image not found
+                  return const Icon(Icons.eco, size: 60, color: Colors.white);
+                },
+              ),
             ),
             const SizedBox(height: 24),
             const Text(
