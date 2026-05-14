@@ -27,9 +27,15 @@ class GradientBanner extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           colors: [AppColors.green, AppColors.burgundy],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         boxShadow: [
-          BoxShadow(color: AppColors.green.withOpacity(0.3), blurRadius: 20),
+          BoxShadow(
+            color: AppColors.green.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
         ],
       ),
       padding: const EdgeInsets.all(24),
@@ -70,7 +76,11 @@ class SectionTitle extends StatelessWidget {
       children: [
         Text(
           text,
-          style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+          style: const TextStyle(
+            fontSize: 17,
+            fontWeight: FontWeight.bold,
+            color: AppColors.textDark,
+          ),
         ),
         if (trailing != null) trailing!,
       ],
@@ -100,7 +110,11 @@ class GoCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 14),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 14,
+              offset: const Offset(0, 6),
+            ),
           ],
         ),
         child: child,
@@ -450,7 +464,7 @@ class GoTextField extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// BOTTOM NAVIGATION BAR
+// BOTTOM NAVIGATION BAR - FIXED
 // ──────────────────────────────────────────────────────────────────────────────
 
 class GoBottomNav extends StatelessWidget {
@@ -465,10 +479,13 @@ class GoBottomNav extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // FIXED: Ensure currentIndex is within valid range (0-3)
+    final validIndex = currentIndex.clamp(0, 3);
+
     return NavigationBar(
       backgroundColor: Colors.white,
       indicatorColor: AppColors.green.withOpacity(0.12),
-      selectedIndex: currentIndex,
+      selectedIndex: validIndex,
       onDestinationSelected: onTap,
       destinations: const [
         NavigationDestination(

@@ -24,7 +24,16 @@ class _MatchesScreenState extends State<MatchesScreen>
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
-    _loadMatches();
+    // Schedule data loading after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMatches();
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMatches() async {
@@ -34,6 +43,7 @@ class _MatchesScreenState extends State<MatchesScreen>
 
   Future<void> _apply(Internship internship) async {
     final auth = Provider.of<AuthProvider>(context, listen: false);
+
     if (!auth.isLoggedIn) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -44,6 +54,7 @@ class _MatchesScreenState extends State<MatchesScreen>
       Navigator.pushNamed(context, '/login');
       return;
     }
+
     if (!auth.isIntern) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -55,6 +66,7 @@ class _MatchesScreenState extends State<MatchesScreen>
     }
 
     setState(() => _applyingId = internship.id);
+
     final appProvider = Provider.of<ApplicationProvider>(
       context,
       listen: false,
@@ -63,10 +75,13 @@ class _MatchesScreenState extends State<MatchesScreen>
 
     if (mounted) {
       setState(() => _applyingId = null);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            success ? 'Application submitted!' : appProvider.error ?? 'Failed',
+            success
+                ? 'Application submitted!'
+                : appProvider.error ?? 'Failed to apply',
           ),
           backgroundColor: success ? AppColors.green : Colors.red,
         ),
@@ -74,11 +89,20 @@ class _MatchesScreenState extends State<MatchesScreen>
     }
   }
 
+  List<Internship> get _recommended => Provider.of<InternshipProvider>(
+    context,
+  ).matches.where((i) => (i.matchScore ?? 0) >= 70).toList();
+
+  List<Internship> get _all => Provider.of<InternshipProvider>(context).matches;
+
+  List<Internship> get _others => Provider.of<InternshipProvider>(
+    context,
+  ).matches.where((i) => (i.matchScore ?? 0) < 70).toList();
+
   @override
   Widget build(BuildContext context) {
-    final provider = Provider.of<InternshipProvider>(context);
-    final matches = provider.matches;
-    final isLoading = provider.isLoading;
+    final isLoading = Provider.of<InternshipProvider>(context).isLoading;
+    final matches = Provider.of<InternshipProvider>(context).matches;
 
     return Scaffold(
       backgroundColor: AppColors.cream,
@@ -104,7 +128,11 @@ class _MatchesScreenState extends State<MatchesScreen>
             chip: Chip(
               label: Text('${matches.length} matches found'),
               backgroundColor: Colors.white24,
-              labelStyle: const TextStyle(color: Colors.white, fontSize: 12),
+              labelStyle: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 8),
@@ -114,19 +142,9 @@ class _MatchesScreenState extends State<MatchesScreen>
                 : TabBarView(
                     controller: _tabs,
                     children: [
-                      _MatchList(
-                        matches
-                            .where((i) => (i.matchScore ?? 0) >= 70)
-                            .toList(),
-                        _apply,
-                        _applyingId,
-                      ),
-                      _MatchList(matches, _apply, _applyingId),
-                      _MatchList(
-                        matches.where((i) => (i.matchScore ?? 0) < 70).toList(),
-                        _apply,
-                        _applyingId,
-                      ),
+                      _MatchList(_recommended, _apply, _applyingId),
+                      _MatchList(_all, _apply, _applyingId),
+                      _MatchList(_others, _apply, _applyingId),
                     ],
                   ),
           ),
@@ -144,25 +162,29 @@ class _MatchesScreenState extends State<MatchesScreen>
 }
 
 class _MatchList extends StatelessWidget {
+  const _MatchList(this.items, this.onApply, this.applyingId);
   final List<Internship> items;
   final Future<void> Function(Internship) onApply;
   final String? applyingId;
 
-  const _MatchList(this.items, this.onApply, this.applyingId);
-
   @override
   Widget build(BuildContext context) {
-    if (items.isEmpty)
+    if (items.isEmpty) {
       return const EmptyState(
         icon: Icons.favorite_border,
         message: 'No matches here',
         sub: 'Complete your profile to improve your match score.',
       );
+    }
+
     return RefreshIndicator(
-      onRefresh: () async => await Provider.of<InternshipProvider>(
-        context,
-        listen: false,
-      ).loadMatches(),
+      onRefresh: () async {
+        final provider = Provider.of<InternshipProvider>(
+          context,
+          listen: false,
+        );
+        await provider.loadMatches();
+      },
       color: AppColors.green,
       child: ListView.builder(
         padding: const EdgeInsets.only(bottom: 20),
@@ -172,6 +194,7 @@ class _MatchList extends StatelessWidget {
           actionLabel: applyingId == items[i].id ? 'Applying...' : 'Apply',
           onAction: () => onApply(items[i]),
           showScore: true,
+          isApplying: applyingId == items[i].id,
         ),
       ),
     );

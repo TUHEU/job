@@ -13,20 +13,25 @@ class ApplicationProvider with ChangeNotifier {
   String? get error => _error;
 
   Future<void> loadApplications({String? internshipId}) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    await Future.microtask(() {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
-      _applications = await ApiService.getApplications(
+      final applications = await ApiService.getApplications(
         internshipId: internshipId,
       );
+      _applications = applications;
     } catch (e) {
       _error = e.toString();
       _applications = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      await Future.microtask(() {
+        _isLoading = false;
+        notifyListeners();
+      });
     }
   }
 
@@ -35,9 +40,11 @@ class ApplicationProvider with ChangeNotifier {
     double? gpa,
     String? aboutMe,
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    await Future.microtask(() {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
       final result = await ApiService.applyForInternship(
@@ -45,18 +52,24 @@ class ApplicationProvider with ChangeNotifier {
         gpa: gpa,
         aboutMe: aboutMe,
       );
+
       if (result.containsKey('error')) {
         _error = result['error'];
+        await Future.microtask(() {
+          _isLoading = false;
+          notifyListeners();
+        });
         return false;
       }
       await loadApplications();
       return true;
     } catch (e) {
       _error = e.toString();
+      await Future.microtask(() {
+        _isLoading = false;
+        notifyListeners();
+      });
       return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
@@ -71,5 +84,10 @@ class ApplicationProvider with ChangeNotifier {
     } catch (e) {
       return false;
     }
+  }
+
+  void clearError() {
+    _error = null;
+    notifyListeners();
   }
 }

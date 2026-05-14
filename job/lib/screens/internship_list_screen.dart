@@ -22,7 +22,18 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
   @override
   void initState() {
     super.initState();
-    _loadInternships();
+    // Schedule data loading after first frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInternships();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    _locationCtrl.dispose();
+    _fieldCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInternships() async {
@@ -39,6 +50,32 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
     );
   }
 
+  Future<void> _apply(String id, AuthProvider auth) async {
+    if (!auth.isLoggedIn) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please login to apply'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      Navigator.pushNamed(context, '/login');
+      return;
+    }
+
+    if (!auth.isIntern) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Only students can apply for internships'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    // Navigate to detail screen where user can apply
+    Navigator.pushNamed(context, '/internship-detail', arguments: {'id': id});
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
@@ -48,7 +85,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.cream,
-      appBar: AppBar(title: const Text('Browse Internships')),
+      appBar: AppBar(title: const Text('Browse Internships'), elevation: 0),
       body: Column(
         children: [
           const GradientBanner(
@@ -56,6 +93,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
             subtitle: 'Browse active listings from employers across Cameroon.',
           ),
           const SizedBox(height: 12),
+
           // Search filters
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -68,6 +106,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                   BoxShadow(
                     color: Colors.black.withOpacity(0.05),
                     blurRadius: 12,
+                    offset: const Offset(0, 4),
                   ),
                 ],
               ),
@@ -79,6 +118,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                     decoration: const InputDecoration(
                       hintText: 'Search by title, skill...',
                       prefixIcon: Icon(Icons.search),
+                      border: InputBorder.none,
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -94,6 +134,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                               Icons.location_on_outlined,
                               size: 18,
                             ),
+                            border: InputBorder.none,
                           ),
                         ),
                       ),
@@ -105,6 +146,7 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                           decoration: const InputDecoration(
                             hintText: 'Field',
                             prefixIcon: Icon(Icons.work_outline, size: 18),
+                            border: InputBorder.none,
                           ),
                         ),
                       ),
@@ -114,7 +156,10 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
               ),
             ),
           ),
+
           const SizedBox(height: 8),
+
+          // Results count
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -124,19 +169,34 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                   style: const TextStyle(
                     color: AppColors.textGrey,
                     fontSize: 13,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
+                const Spacer(),
+                if (isLoading)
+                  const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.green,
+                    ),
+                  ),
               ],
             ),
           ),
+
+          const SizedBox(height: 8),
+
+          // Internship list
           Expanded(
-            child: isLoading
+            child: isLoading && internships.isEmpty
                 ? const LoadingOverlay()
                 : internships.isEmpty
                 ? const EmptyState(
                     icon: Icons.search_off_outlined,
                     message: 'No internships found',
-                    sub: 'Try changing your filters.',
+                    sub: 'Try changing your filters or search terms.',
                   )
                 : RefreshIndicator(
                     onRefresh: _loadInternships,
@@ -144,46 +204,29 @@ class _InternshipListScreenState extends State<InternshipListScreen> {
                     child: ListView.builder(
                       padding: const EdgeInsets.only(bottom: 20),
                       itemCount: internships.length,
-                      itemBuilder: (_, i) => InternshipCard(
-                        internship: internships[i],
-                        actionLabel: 'Apply',
-                        onAction: () => _apply(internships[i].id, auth),
-                      ),
+                      itemBuilder: (_, index) {
+                        final internship = internships[index];
+                        return InternshipCard(
+                          internship: internship,
+                          actionLabel: 'Apply',
+                          onAction: () => _apply(internship.id, auth),
+                          showScore: false,
+                        );
+                      },
                     ),
                   ),
           ),
         ],
       ),
       bottomNavigationBar: GoBottomNav(
-        currentIndex: -1,
-        onTap: (i) {
+        currentIndex: 0, // FIXED: Changed from -1 to 0
+        onTap: (index) {
           const routes = ['/home', '/matches', '/applications', '/profile'];
-          Navigator.pushNamed(context, routes[i]);
+          if (index >= 0 && index < routes.length) {
+            Navigator.pushNamed(context, routes[index]);
+          }
         },
       ),
     );
-  }
-
-  Future<void> _apply(String id, AuthProvider auth) async {
-    if (!auth.isLoggedIn) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please login to apply'),
-          backgroundColor: Colors.orange,
-        ),
-      );
-      Navigator.pushNamed(context, '/login');
-      return;
-    }
-    if (!auth.isIntern) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Only students can apply'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
-    Navigator.pushNamed(context, '/internship-detail', arguments: {'id': id});
   }
 }

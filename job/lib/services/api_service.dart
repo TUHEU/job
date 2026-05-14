@@ -12,12 +12,15 @@ class ApiService {
   ApiService._();
   static final ApiService instance = ApiService._();
 
-  // Dynamic Base URL Configuration
+  // UPDATE THIS TO YOUR BACKEND IP
   static String get baseUrl {
     if (kIsWeb) return 'http://localhost:3000';
-    if (Platform.isAndroid) return 'http://10.0.2.2:3000';
-    if (Platform.isIOS) return 'http://localhost:3000';
-    return 'http://192.168.1.100:3000'; // Update with your IP
+    if (Platform.isAndroid) return 'http://10.0.2.2:3000'; // Android emulator
+    if (Platform.isIOS) return 'http://localhost:3000'; // iOS simulator
+
+    // FOR PHYSICAL DEVICE - USE YOUR COMPUTER'S IP
+    // Your backend shows: http://192.168.1.191:3000
+    return 'http://192.168.1.191:3000'; // ← UPDATE THIS IP
   }
 
   static Future<String?> getToken() async {
@@ -101,7 +104,6 @@ class ApiService {
     }
   }
 
-  // FIXED: Added getMe method
   static Future<Map<String, dynamic>?> getMe() async {
     try {
       final headers = await _authHeaders();

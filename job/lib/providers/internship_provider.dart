@@ -21,61 +21,83 @@ class InternshipProvider with ChangeNotifier {
     String location = '',
     String field = '',
   }) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    // Use microtask to avoid build phase issues
+    await Future.microtask(() {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
-      _internships = await ApiService.getInternships(
+      final internships = await ApiService.getInternships(
         keyword: keyword,
         location: location,
         field: field,
       );
+      _internships = internships;
     } catch (e) {
       _error = e.toString();
       _internships = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      await Future.microtask(() {
+        _isLoading = false;
+        notifyListeners();
+      });
     }
   }
 
   Future<void> loadMyInternships() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    await Future.microtask(() {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
-      _myInternships = await ApiService.getMyInternships();
+      final internships = await ApiService.getMyInternships();
+      _myInternships = internships;
     } catch (e) {
       _error = e.toString();
       _myInternships = [];
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      await Future.microtask(() {
+        _isLoading = false;
+        notifyListeners();
+      });
     }
   }
 
   Future<void> loadMatches() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    // Use addPostFrameCallback to avoid calling notifyListeners during build
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
-      _matches = await ApiService.getMatches();
+      final matches = await ApiService.getMatches();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _matches = matches;
+        _isLoading = false;
+        notifyListeners();
+      });
     } catch (e) {
-      _error = e.toString();
-      _matches = [];
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _error = e.toString();
+        _matches = [];
+        _isLoading = false;
+        notifyListeners();
+      });
     }
   }
 
   Future<bool> postInternship(Map<String, dynamic> data) async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+    await Future.microtask(() {
+      _isLoading = true;
+      _error = null;
+      notifyListeners();
+    });
 
     try {
       final result = await ApiService.postInternship(
@@ -86,18 +108,37 @@ class InternshipProvider with ChangeNotifier {
         List<String>.from(data['requirements']),
         data['deadline'],
       );
+
       if (result.containsKey('error')) {
         _error = result['error'];
+        await Future.microtask(() {
+          _isLoading = false;
+          notifyListeners();
+        });
         return false;
       }
       await loadMyInternships();
       return true;
     } catch (e) {
       _error = e.toString();
+      await Future.microtask(() {
+        _isLoading = false;
+        notifyListeners();
+      });
       return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteInternship(String id) async {
+    try {
+      final result = await ApiService.deleteInternship(id);
+      if (!result.containsKey('error')) {
+        await loadMyInternships();
+        return true;
+      }
+      return false;
+    } catch (e) {
+      return false;
     }
   }
 

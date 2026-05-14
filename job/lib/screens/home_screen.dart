@@ -19,12 +19,18 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _loadData();
+    // Schedule data loading after first frame to avoid build phase issues
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadData();
+    });
   }
 
   Future<void> _loadData() async {
-    final provider = Provider.of<InternshipProvider>(context, listen: false);
-    await provider.loadMatches();
+    final internshipProvider = Provider.of<InternshipProvider>(
+      context,
+      listen: false,
+    );
+    await internshipProvider.loadMatches();
   }
 
   int _profileStrength(User user) {
@@ -58,7 +64,11 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Notifications coming soon!')),
+              );
+            },
           ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
@@ -84,12 +94,15 @@ class _HomeScreenState extends State<HomeScreen> {
         onRefresh: _loadData,
         color: AppColors.green,
         child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.all(16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _WelcomeCard(user: user, strength: strength),
               const SizedBox(height: 18),
+
+              // Stats Row
               Row(
                 children: [
                   _StatTile(
@@ -107,7 +120,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   _StatTile('Profile', '$strength%', Icons.person_outline),
                 ],
               ),
+
               const SizedBox(height: 20),
+
+              // Quick Actions
               const SectionTitle('Quick Actions'),
               const SizedBox(height: 12),
               Row(
@@ -145,9 +161,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   ],
                 ],
               ),
+
               const SizedBox(height: 22),
+
+              // Top Matches
               SectionTitle(
-                'Top Matches',
+                'Top Matches For You',
                 trailing: TextButton(
                   onPressed: () => Navigator.pushNamed(context, '/matches'),
                   child: const Text(
@@ -157,6 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               const SizedBox(height: 8),
+
               if (internshipProvider.isLoading)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
@@ -166,7 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 const EmptyState(
                   icon: Icons.work_off_outlined,
                   message: 'No matches yet',
-                  sub: 'Complete your profile to get recommendations.',
+                  sub:
+                      'Complete your profile to get personalised recommendations.',
                 )
               else
                 ...matches.map((i) => _MatchRow(internship: i)),
@@ -185,6 +206,8 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+// ── Sub-widgets ───────────────────────────────────────────────────────────────
+
 class _WelcomeCard extends StatelessWidget {
   const _WelcomeCard({required this.user, required this.strength});
   final User user;
@@ -197,6 +220,8 @@ class _WelcomeCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           colors: [AppColors.green, AppColors.burgundy],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
         ),
         boxShadow: [
           BoxShadow(
@@ -284,7 +309,11 @@ class _StatTile extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
           ],
         ),
         child: Column(
@@ -293,7 +322,11 @@ class _StatTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                color: AppColors.textDark,
+              ),
             ),
             Text(
               label,
@@ -324,10 +357,15 @@ class _ActionTile extends StatelessWidget {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10),
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
             ],
           ),
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
               CircleAvatar(
                 radius: 20,
@@ -364,7 +402,11 @@ class _MatchRow extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(18),
         boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10),
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
         ],
       ),
       child: Row(
